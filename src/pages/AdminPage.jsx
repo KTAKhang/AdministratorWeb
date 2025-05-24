@@ -5,9 +5,10 @@ import {
   ShoppingCartOutlined,
   DollarOutlined,
   ShoppingOutlined,
-  ArrowUpOutlined,
 } from "@ant-design/icons";
 import { Area } from "@ant-design/charts";
+import Sidebar from "../components/Sidebar/Sidebar";
+import { motion } from 'framer-motion';
 
 const { Text } = Typography;
 
@@ -15,18 +16,18 @@ export default function AdminPage() {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   const areaData = [
-    { month: "Jan", value: 200 },
-    { month: "Feb", value: 100 },
-    { month: "Mar", value: 250 },
-    { month: "Apr", value: 300 },
-    { month: "May", value: 400 },
-    { month: "Jun", value: 500 },
-    { month: "Jul", value: 350 },
-    { month: "Aug", value: 300 },
-    { month: "Sep", value: 320 },
-    { month: "Oct", value: 250 },
-    { month: "Nov", value: 400 },
-    { month: "Dec", value: 450 },
+    { month: "Tháng 1", value: 200 },
+    { month: "Tháng 2", value: 100 },
+    { month: "Tháng 3", value: 250 },
+    { month: "Tháng 4", value: 300 },
+    { month: "Tháng 5", value: 400 },
+    { month: "Tháng 6", value: 500 },
+    { month: "Tháng 7", value: 350 },
+    { month: "Tháng 8", value: 300 },
+    { month: "Tháng 9", value: 320 },
+    { month: "Tháng 10", value: 250 },
+    { month: "Tháng 11", value: 400 },
+    { month: "Tháng 12", value: 450 },
   ];
 
   const areaConfig = {
@@ -65,8 +66,8 @@ export default function AdminPage() {
       showCrosshairs: true,
       shared: true,
       formatter: (datum) => ({
-        name: "Sales",
-        value: `$${datum.value}`,
+        name: "Doanh Thu",
+        value: `${datum.value}`,
       }),
     },
     animation: {
@@ -79,21 +80,21 @@ export default function AdminPage() {
 
   const cardStats = [
     {
-      title: "Today's Money",
+      title: "Doanh thu hôm nay",
       value: 53000,
       icon: <DollarOutlined style={{ fontSize: 24, color: "#13c2c2" }} />,
       suffix: "+5.5%",
       suffixColor: "#13c2c2",
     },
     {
-      title: "New Clients",
-      value: 3052,
+      title: "Khách hàng mới",
+      value: 33,
       icon: <UserOutlined style={{ fontSize: 24, color: "#13c2c2" }} />,
-      suffix: "-14%",
+      suffix: "-47.2%",
       suffixColor: "#ff4d4f",
     },
     {
-      title: "Total Sales",
+      title: "Doanh số",
       value: 173000,
       icon: <ShoppingCartOutlined style={{ fontSize: 24, color: "#13c2c2" }} />,
       suffix: "+8.3%",
@@ -102,106 +103,129 @@ export default function AdminPage() {
   ];
 
   return (
-    <div style={{ padding: 24, background: "#f0f2f5", minHeight: "100vh" }}>
-      <Row gutter={24}>
-        {cardStats.map((stat, index) => (
-          <Col span={8} key={index}>
+    <div className="flex min-h-screen bg-white">
+      <Sidebar isAdmin isOpen />
+      <div className="flex-1 ml-[260px] bg-white">
+        <div className="p-8 mt-1">
+          <Row gutter={24}>
+            {cardStats.map((stat, index) => (
+              <Col span={8} key={index}>
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.3, delay: index * 0.1 }}
+                >
+                  <Card
+                    onMouseEnter={() => setHoveredCard(index)}
+                    onMouseLeave={() => setHoveredCard(null)}
+                    style={{
+                      borderRadius: 16,
+                      border: "none",
+                      background: "#ffffff",
+                      boxShadow:
+                        hoveredCard === index
+                          ? "0 8px 32px rgba(0,0,0,0.06)"
+                          : "0 4px 16px rgba(0,0,0,0.03)",
+                      transition: "box-shadow 0.3s",
+                    }}
+                  >
+                    <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+                      {stat.icon}
+                      <div>
+                        <Text type="secondary">{stat.title}</Text>
+                        <div style={{ fontSize: 20, fontWeight: 600 }}>
+                          {stat.value.toLocaleString()} {" "}
+                          <span style={{ color: stat.suffixColor, fontSize: 14 }}>
+                            {stat.suffix}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </Card>
+                </motion.div>
+              </Col>
+            ))}
+          </Row>
+
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: cardStats.length * 0.1 + 0.2 }}
+          >
             <Card
-              onMouseEnter={() => setHoveredCard(index)}
-              onMouseLeave={() => setHoveredCard(null)}
               style={{
+                marginTop: 24,
                 borderRadius: 16,
                 border: "none",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
                 background: "#ffffff",
-                boxShadow:
-                  hoveredCard === index
-                    ? "0 8px 32px rgba(0,0,0,0.06)"
-                    : "0 4px 16px rgba(0,0,0,0.03)",
-                transition: "box-shadow 0.3s",
               }}
             >
-              <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-                {stat.icon}
-                <div>
-                  <Text type="secondary">{stat.title}</Text>
-                  <div style={{ fontSize: 20, fontWeight: 600 }}>
-                    ${stat.value.toLocaleString()}{" "}
-                    <span style={{ color: stat.suffixColor, fontSize: 14 }}>
-                      {stat.suffix}
-                    </span>
-                  </div>
-                </div>
+              <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                Tổng quan doanh số{" "}
+                <span style={{ color: "#13c2c2", fontWeight: 400 }}>(+5) nhiều hơn trong năm 2024</span>
               </div>
+              <Area {...areaConfig} />
             </Card>
-          </Col>
-        ))}
-      </Row>
+          </motion.div>
 
-      <Card
-        style={{
-          marginTop: 24,
-          borderRadius: 16,
-          border: "none",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
-          background: "#ffffff",
-        }}
-      >
-        <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
-          Sales overview{" "}
-          <span style={{ color: "#13c2c2", fontWeight: 400 }}>(+5) more in 2021</span>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: cardStats.length * 0.1 + 0.4 }}
+          >
+            <Card
+              style={{
+                marginTop: 24,
+                borderRadius: 16,
+                border: "none",
+                boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
+                background: "#ffffff",
+              }}
+            >
+              <div style={{ fontSize: 16, fontWeight: 600 }}>
+                Người dùng hoạt động{" "}
+                <span style={{ color: "#13c2c2", fontWeight: 400 }}>
+                  (+23) so với tuần trước
+                </span>
+              </div>
+              <Row gutter={24} style={{ marginTop: 16 }}>
+                <Col span={6}>
+                  <Statistic
+                    title="Người Dùng"
+                    value={32984}
+                    prefix={<UserOutlined style={{ color: "#13c2c2" }} />}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Statistic
+                    title="Tổng Doanh Thu"
+                    value={2.42}
+                    precision={2}
+                    suffix="m"
+                    prefix={<DollarOutlined style={{ color: "#13c2c2" }} />}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Statistic
+                    title="Tổng Doanh Số"
+                    value={2400}
+                    suffix="SP"
+                    prefix={<ShoppingCartOutlined style={{ color: "#13c2c2" }} />}
+                  />
+                </Col>
+                <Col span={6}>
+                  <Statistic
+                    title="Sản Phẩm"
+                    value={320}
+                    prefix={<ShoppingOutlined style={{ color: "#13c2c2" }} />}
+                  />
+                </Col>
+              </Row>
+            </Card>
+          </motion.div>
         </div>
-        <Area {...areaConfig} />
-      </Card>
-
-      <Card
-        style={{
-          marginTop: 24,
-          borderRadius: 16,
-          border: "none",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.04)",
-          background: "#ffffff",
-        }}
-      >
-        <div style={{ fontSize: 16, fontWeight: 600 }}>
-          Active Users{" "}
-          <span style={{ color: "#13c2c2", fontWeight: 400 }}>
-            (+23) than last week
-          </span>
-        </div>
-        <Row gutter={24} style={{ marginTop: 16 }}>
-          <Col span={6}>
-            <Statistic
-              title="Users"
-              value={32984}
-              prefix={<UserOutlined style={{ color: "#13c2c2" }} />}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Clicks"
-              value={2.42}
-              precision={2}
-              suffix="m"
-              prefix={<ArrowUpOutlined style={{ color: "#13c2c2" }} />}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Sales"
-              value={2400}
-              suffix="$"
-              prefix={<DollarOutlined style={{ color: "#13c2c2" }} />}
-            />
-          </Col>
-          <Col span={6}>
-            <Statistic
-              title="Items"
-              value={320}
-              prefix={<ShoppingOutlined style={{ color: "#13c2c2" }} />}
-            />
-          </Col>
-        </Row>
-      </Card>
+      </div>
     </div>
   );
 }

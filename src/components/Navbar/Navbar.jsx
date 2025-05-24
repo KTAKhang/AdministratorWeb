@@ -36,7 +36,7 @@ const Navbar = ({ toggleSidebar }) => {
         </div>
 
         {/* Center Section: Search Bar */}
-        <div className="flex items-center">
+        {/* <div className="flex items-center">
           <input
             type="text"
             className="w-[500px] h-[40px] border rounded-l-full focus:outline-none px-4"
@@ -45,7 +45,7 @@ const Navbar = ({ toggleSidebar }) => {
           <button className="h-[40px] bg-white border rounded-r-full flex items-center px-4">
             <FaMagnifyingGlass />
           </button>
-        </div>
+        </div> */}
 
         {/* Right Section: User Info */}
         <div className="flex items-center space-x-4 relative">
