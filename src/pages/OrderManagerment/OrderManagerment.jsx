@@ -191,7 +191,7 @@ const OrderManagement = () => {
   ];
 
   return (
-    <div className="overflow-x-auto" style={{ paddingLeft: '250px' }}>
+    <div className="overflow-x-auto" >
       <Card
         className="shadow-md"
         title="Danh sách Đơn hàng"

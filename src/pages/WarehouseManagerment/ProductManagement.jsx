@@ -215,7 +215,7 @@ const ProductManagement = () => {
         <div className="flex gap-2">
           <Button icon={<EyeOutlined />} onClick={() => handleOpenViewDetailModal(record)} />
           <Button icon={<EditOutlined />} onClick={() => handleOpenUpdateModal(record)} />
-          <Button icon={<DeleteOutlined />} danger onClick={() => handleOpenDeleteModal(record)} />
+          {/* <Button icon={<DeleteOutlined />} danger onClick={() => handleOpenDeleteModal(record)} /> */}
         </div>
       ),
     },
@@ -223,7 +223,7 @@ const ProductManagement = () => {
 
   // TODO: Render CreateProduct, UpdateProduct, DeleteProduct components here
   return (
-    <div className="overflow-x-auto" style={{ paddingLeft: '250px' }}>
+    <div className="overflow-x-auto" >
       <Card
         className="shadow-md"
         title="Danh sách Sản phẩm"
@@ -235,7 +235,7 @@ const ProductManagement = () => {
             style={{ width: 300 }}
             allowClear
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)}> 
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)} style={{ backgroundColor: '#13C2C2', borderColor: '#13C2C2' }}> 
             Thêm Sản phẩm
           </Button>
         </div>

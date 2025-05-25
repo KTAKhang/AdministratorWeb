@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from 'react'
+import { useEffect } from 'react'
 import { AiOutlineAppstore } from "react-icons/ai";
 import { Link } from 'react-router-dom';
-import logo from '../../../public/logo.svg'
+
 function FinanceDashboardPage() {
     useEffect(() => {
         document.title = "Dashboad";
@@ -56,7 +56,7 @@ function FinanceDashboardPage() {
                     </Link>
                 </div>
                 <div className='flex flex-1 justify-center  w-full'>
-                    <img className='bg-[#FFFFFF] opacity-50' src={logo} alt="" />
+                    <img className='bg-[#FFFFFF] opacity-50' src="/logo.svg" alt="" />
                 </div>
 
             </div>

@@ -201,16 +201,16 @@ const CategoryManagement = () => {
       key: "action",
       render: (_, record) => (
         <div className="flex gap-2">
-          <Button icon={<EyeOutlined />} onClick={() => handleOpenViewDetailModal(record)} />{/* View Detail Button */}
+          <Button icon={<EyeOutlined />} onClick={() => handleOpenViewDetailModal(record)} />
           <Button icon={<EditOutlined />} onClick={() => handleOpenUpdateModal(record)} />
-          <Button icon={<DeleteOutlined />} danger onClick={() => handleOpenDeleteModal(record)} /> {/* Chỉnh sửa nút */} 
+          {/* <Button icon={<DeleteOutlined />} danger onClick={() => handleOpenDeleteModal(record)} />  */}
         </div>
       ),
     },
   ];
 
   return (
-    <div className="overflow-x-auto" style={{ paddingLeft: '250px' }}>
+    <div className="overflow-x-auto" >
       <Card
         className="shadow-md"
         title="Danh sách Category"
@@ -222,7 +222,7 @@ const CategoryManagement = () => {
             style={{ width: 300 }}
             allowClear
           />
-          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)}> 
+          <Button type="primary" icon={<PlusOutlined />} onClick={() => setIsCreateModalVisible(true)} style={{ backgroundColor: '#13C2C2', borderColor: '#13C2C2' }}> 
             Thêm Category
           </Button>
         </div>

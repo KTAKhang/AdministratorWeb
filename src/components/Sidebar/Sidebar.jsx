@@ -15,20 +15,31 @@ import {
   PlusOutlined,
   ProjectOutlined
 } from '@ant-design/icons';
-import { useState } from 'react';
-import PropTypes from 'prop-types';
+import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
+import { motion } from 'framer-motion';
+import { useSidebar } from '../../contexts/SidebarContext';
+import PropTypes from 'prop-types';
 
-const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer, isOpen }) => {
+const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
   const [isClaimsOpen, setIsClaimsOpen] = useState(false);
   const [isWarehouseOpen, setIsWarehouseOpen] = useState(false);
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
+  const { isOpen } = useSidebar();
+
+  // Sử dụng useRef để theo dõi trạng thái isOpen trước đó
+  const prevIsOpen = useRef(isOpen);
+
+  useEffect(() => {
+    // Cập nhật giá trị ref sau mỗi render
+    prevIsOpen.current = isOpen;
+  }, [isOpen]);
 
   const handleLogout = () => {
     logout();
-    navigate('/login');
+    navigate('/');
   };
 
   const financeMenuItems = [
@@ -275,7 +286,14 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer, isOpen }) => {
   };
 
   return (
-    <div className={`bg-[#1A202C] min-h-screen ${isOpen ? 'w-[260px]' : 'w-16'} fixed left-0 top-0 text-gray-200 z-50 transition-all duration-300`}>
+    <motion.div
+      initial={false}
+      animate={{
+        width: isOpen ? '260px' : '64px',
+        transition: { duration: 0.3, ease: "easeInOut" }
+      }}
+      className="bg-[#1A202C] min-h-screen text-gray-200 z-50"
+    >
       <div className="p-4 flex flex-col h-full">
         {/* Header */}
         <div className="text-xl font-bold mb-8 text-center tracking-wide border-b border-gray-700 pb-4 text-white">
@@ -302,7 +320,7 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer, isOpen }) => {
           </div>
         </div>
       </div>
-    </div>
+    </motion.div>
   );
 };
 
@@ -311,7 +329,6 @@ Sidebar.propTypes = {
   isAdmin: PropTypes.bool,
   isApprover: PropTypes.bool,
   isClaimer: PropTypes.bool,
-  isOpen: PropTypes.bool
 };
 
 Sidebar.defaultProps = {

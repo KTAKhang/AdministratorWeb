@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Card, Row, Col, Statistic, Typography } from "antd";
 import {
   UserOutlined,
@@ -6,9 +6,16 @@ import {
   DollarOutlined,
   ShoppingOutlined,
 } from "@ant-design/icons";
-import { Area } from "@ant-design/charts";
-import Sidebar from "../components/Sidebar/Sidebar";
 import { motion } from 'framer-motion';
+import {
+  AreaChart,
+  Area,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from 'recharts';
 
 const { Text } = Typography;
 
@@ -16,67 +23,19 @@ export default function AdminPage() {
   const [hoveredCard, setHoveredCard] = useState(null);
 
   const areaData = [
-    { month: "Tháng 1", value: 200 },
-    { month: "Tháng 2", value: 100 },
-    { month: "Tháng 3", value: 250 },
-    { month: "Tháng 4", value: 300 },
-    { month: "Tháng 5", value: 400 },
-    { month: "Tháng 6", value: 500 },
-    { month: "Tháng 7", value: 350 },
-    { month: "Tháng 8", value: 300 },
-    { month: "Tháng 9", value: 320 },
-    { month: "Tháng 10", value: 250 },
-    { month: "Tháng 11", value: 400 },
-    { month: "Tháng 12", value: 450 },
+    { month: "Tháng 1", doanhSo: 255, loiNhuan: 180 },
+    { month: "Tháng 2", doanhSo: 180, loiNhuan: 100 },
+    { month: "Tháng 3", doanhSo: 280, loiNhuan: 200 },
+    { month: "Tháng 4", doanhSo: 350, loiNhuan: 250 },
+    { month: "Tháng 5", doanhSo: 420, loiNhuan: 300 },
+    { month: "Tháng 6", doanhSo: 500, loiNhuan: 350 },
+    { month: "Tháng 7", doanhSo: 500, loiNhuan: 280 },
+    { month: "Tháng 8", doanhSo: 310, loiNhuan: 200 },
+    { month: "Tháng 9", doanhSo: 360, loiNhuan: 600 },
+    { month: "Tháng 10", doanhSo: 270, loiNhuan: 180 },
+    { month: "Tháng 11", doanhSo: 400, loiNhuan: 300 },
+    { month: "Tháng 12", doanhSo: 480, loiNhuan: 350 },
   ];
-
-  const areaConfig = {
-    data: areaData,
-    xField: "month",
-    yField: "value",
-    smooth: true,
-    height: 300,
-    autoFit: true,
-    areaStyle: {
-      fill: 'l(270) 0:#13c2c2 1:#ffffff',
-    },
-    line: {
-      style: {
-        stroke: "#13c2c2",
-        lineWidth: 2,
-      },
-    },
-    xAxis: {
-      label: {
-        style: {
-          fill: "#8c8c8c",
-        },
-      },
-      grid: null,
-    },
-    yAxis: {
-      label: {
-        style: {
-          fill: "#8c8c8c",
-        },
-      },
-      grid: null,
-    },
-    tooltip: {
-      showCrosshairs: true,
-      shared: true,
-      formatter: (datum) => ({
-        name: "Doanh Thu",
-        value: `${datum.value}`,
-      }),
-    },
-    animation: {
-      appear: {
-        animation: "path-in",
-        duration: 2000,
-      },
-    },
-  };
 
   const cardStats = [
     {
@@ -104,8 +63,7 @@ export default function AdminPage() {
 
   return (
     <div className="flex min-h-screen bg-white">
-      <Sidebar isAdmin isOpen />
-      <div className="flex-1 ml-[260px] bg-white">
+      <div className="flex-1 bg-white">
         <div className="p-8 mt-1">
           <Row gutter={24}>
             {cardStats.map((stat, index) => (
@@ -134,7 +92,7 @@ export default function AdminPage() {
                       <div>
                         <Text type="secondary">{stat.title}</Text>
                         <div style={{ fontSize: 20, fontWeight: 600 }}>
-                          {stat.value.toLocaleString()} {" "}
+                          {stat.value.toLocaleString()}{" "}
                           <span style={{ color: stat.suffixColor, fontSize: 14 }}>
                             {stat.suffix}
                           </span>
@@ -163,9 +121,51 @@ export default function AdminPage() {
             >
               <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
                 Tổng quan doanh số{" "}
-                <span style={{ color: "#13c2c2", fontWeight: 400 }}>(+5) nhiều hơn trong năm 2024</span>
+                <span style={{ color: "#13c2c2", fontWeight: 400 }}>
+                  (+5) nhiều hơn trong năm 2024
+                </span>
               </div>
-              <Area {...areaConfig} />
+              <ResponsiveContainer width="100%" height={300}>
+                <AreaChart data={areaData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e0e0e0" />
+                  <XAxis dataKey="month" axisLine={false} tickLine={false} stroke="#8c8c8c" />
+                  <YAxis axisLine={false} tickLine={false} stroke="#8c8c8c" />
+                  <Tooltip />
+
+                  {/* Doanh số */}
+                  <Area
+                    type="monotone"
+                    dataKey="doanhSo"  // DataKey cho Doanh số
+                    stroke="#08979C"
+                    fill="url(#colorDoanhSo)"
+                    name="Doanh số"
+                    strokeWidth={2}
+                    activeDot={{ r: 8 }}
+                  />
+
+                  {/* Lợi nhuận */}
+                  <Area
+                    type="monotone"
+                    dataKey="loiNhuan"  // DataKey cho Lợi nhuận
+                    stroke="#006D75"
+                    fill="url(#colorLoiNhuan)"
+                    name="Lợi nhuận"
+                    strokeWidth={2}
+                    activeDot={{ r: 8 }}
+                  />
+
+                  <defs>
+                    <linearGradient id="colorDoanhSo" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#13C2C2" stopOpacity={0.7} />
+                      <stop offset="95%" stopColor="#13C2C2" stopOpacity={0} />
+                    </linearGradient>
+                    <linearGradient id="colorLoiNhuan" x1="0" y1="0" x2="0" y2="1">
+                      <stop offset="5%" stopColor="#5CDBD3" stopOpacity={0.7} />
+                      <stop offset="95%" stopColor="#5CDBD3" stopOpacity={0} />
+                    </linearGradient>
+                  </defs>
+                </AreaChart>
+              </ResponsiveContainer>
             </Card>
           </motion.div>
 

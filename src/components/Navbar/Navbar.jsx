@@ -1,12 +1,18 @@
-import React, { useState } from "react";
+import { useState, useMemo } from "react";
 import { RxTextAlignJustify } from "react-icons/rx";
-import { FaMagnifyingGlass } from "react-icons/fa6";
 import { Link, useNavigate } from "react-router-dom";
 import cat from '../../assets/img/cat.png';
+import { debounce } from "lodash";
+import { useSidebar } from "../../contexts/SidebarContext";
 
-const Navbar = ({ toggleSidebar }) => {
+const Navbar = () => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
   const navigate = useNavigate();
+  const { toggleSidebar } = useSidebar();
+
+  const debouncedToggleSidebar = useMemo(() => {
+    return debounce(toggleSidebar, 300); // 300ms debounce time
+  }, [toggleSidebar]);
 
   const toggleDropdown = () => {
     setIsDropdownOpen(!isDropdownOpen);
@@ -16,21 +22,19 @@ const Navbar = ({ toggleSidebar }) => {
   };
 
   return (
-    <div className="w-full bg-white shadow-md">
+    <div className="w-full bg-[#0D364C] shadow-md">
       <div className="flex justify-between items-center p-4">
         {/* Left Section: Sidebar Toggle & Logo */}
         <div className="flex items-center space-x-4">
-          <button onClick={toggleSidebar} className="text-3xl">
+          <button onClick={debouncedToggleSidebar} className="text-3xl">
             <RxTextAlignJustify />
           </button>
           <button onClick={handleHome}>
             <img
-              alt="FPT Software Logo"
-              src="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/FPT_Software_logo.svg/512px-FPT_Software_logo.svg.png?20230121075219"
+              alt="Toy Shop Logo"
+              src="https://images-platform.99static.com/1_9hhxdHPqAoIOKFOW0erbmIBtM=/0x2050:2000x4050/fit-in/99designs-contests-attachments/124/124456/attachment_124456078"
               decoding="async"
               className="w-28 h-10"
-              srcSet="https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/FPT_Software_logo.svg/768px-FPT_Software_logo.svg.png?20230121075219 1.5x, 
-                      https://upload.wikimedia.org/wikipedia/commons/thumb/e/ea/FPT_Software_logo.svg/1024px-FPT_Software_logo.svg.png?20230121075219 2x"
             />
           </button>
         </div>
@@ -49,7 +53,7 @@ const Navbar = ({ toggleSidebar }) => {
 
         {/* Right Section: User Info */}
         <div className="flex items-center space-x-4 relative">
-          <span className="text-lg font-normal text-black">Hello User</span>
+          <span className="text-lg font-normal text-white">Hello User</span>
           <div className="w-15 h-15 rounded-full overflow-hidden cursor-pointer" onClick={toggleDropdown}>
             <img src={cat} alt="User Avatar" className="w-[50px] h-[50px] object-cover" />
           </div>

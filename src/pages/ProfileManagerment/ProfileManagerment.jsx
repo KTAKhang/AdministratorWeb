@@ -7,7 +7,6 @@ import {
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
 import { useState } from 'react';
-import Sidebar from "../../components/Sidebar/Sidebar";
 
 const UserProfile = () => {
   // Sample user data - replace with actual data fetching
@@ -49,8 +48,8 @@ const UserProfile = () => {
 
   return (
     <div className="flex min-h-screen bg-white">
-      <Sidebar isAdmin isOpen={true} />
-      <div className="flex-1 ml-[260px] bg-white">
+      {/* <Sidebar isAdmin isOpen={true} /> */}
+      <div className="flex-1 bg-white">
         <div className="p-8">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Header Section */}
