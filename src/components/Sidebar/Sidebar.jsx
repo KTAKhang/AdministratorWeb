@@ -13,11 +13,12 @@ import {
   DownOutlined,
   RightOutlined,
   PlusOutlined,
-  ProjectOutlined
+  ProjectOutlined,
+  MenuOutlined
 } from '@ant-design/icons';
 import { useState, useRef, useEffect } from 'react';
 import { useAuth } from '../../contexts/AuthContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { useSidebar } from '../../contexts/SidebarContext';
 import PropTypes from 'prop-types';
 
@@ -27,7 +28,9 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
   const location = useLocation();
   const navigate = useNavigate();
   const { logout } = useAuth();
-  const { isOpen } = useSidebar();
+  const sidebarContext = useSidebar ? useSidebar() : {};
+  const isOpen = typeof sidebarContext.isOpen !== 'undefined' ? sidebarContext.isOpen : (typeof props.isOpen !== 'undefined' ? props.isOpen : true);
+  const [hoveredItem, setHoveredItem] = useState(null);
 
   // Sử dụng useRef để theo dõi trạng thái isOpen trước đó
   const prevIsOpen = useRef(isOpen);
@@ -46,7 +49,8 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
     { 
       title: "Dashboard", 
       path: "/finance", 
-      icon: <HomeOutlined /> 
+      icon: <HomeOutlined />,
+      color: "#FF6B6B"
     }
   ];
 
@@ -54,12 +58,14 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
     { 
       title: "Approved", 
       path: "/finance/approved", 
-      icon: <CheckCircleOutlined /> 
+      icon: <CheckCircleOutlined />,
+      color: "#4ECDC4"
     },
     { 
       title: "Paid", 
       path: "/finance/paid", 
-      icon: <DollarOutlined /> 
+      icon: <DollarOutlined />,
+      color: "#45B7D1"
     },
   ];
 
@@ -67,153 +73,187 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
     {
       title: "Dashboard",
       path: "/admin",
-      icon: <HomeOutlined />
+      icon: <HomeOutlined />,
+      color: "#FF6B6B"
     },
     {
       title: "Quản Lý Kho",
       icon: <AppstoreOutlined />,
+      color: "#96CEB4",
       children: [
         {
           title: "Quản Lý Category",
           path: "/admin/category",
-          icon: <DatabaseOutlined />
+          icon: <DatabaseOutlined />,
+          color: "#FECA57"
         },
         {
           title: "Quản Lý Sản Phẩm",
           path: "/admin/product",
-          icon: <AppstoreOutlined />
+          icon: <AppstoreOutlined />,
+          color: "#FF9FF3"
         }
       ]
     },
     {
       title: "Quản Lý Khách Hàng",
       path: "/admin/customer",
-      icon: <UserOutlined />
+      icon: <UserOutlined />,
+      color: "#54A0FF"
     },
     {
       title: "Quản Lý Đơn Hàng",
       path: "/admin/order",
-      icon: <ShoppingCartOutlined />
+      icon: <ShoppingCartOutlined />,
+      color: "#5F27CD"
     },
-    {
-      title: "Quản Lý Hồ Sơ",
-      path: "/admin/profile",
-      icon: <ProfileOutlined />
-    }
   ];
 
   const approverMenuItems = [
     {
       title: "Approver Dashboard",
       path: "/approver",
-      icon: <HomeOutlined />
+      icon: <HomeOutlined />,
+      color: "#FF6B6B"
     },
     {
       title: "For my Vetting",
       path: "/approver/vetting",
-      icon: <ProjectOutlined />
+      icon: <ProjectOutlined />,
+      color: "#4ECDC4"
     },
     {
       title: "Claims History",
       path: "/approver/history",
-      icon: <FileTextOutlined />
+      icon: <FileTextOutlined />,
+      color: "#45B7D1"
     }
   ];
 
-  const claimerMenuItems = [
-    {
-      title: "Create Claim",
-      path: "/claimer/create-claim",
-      icon: <PlusOutlined />
-    },
-    {
-      title: "Draft Claims",
-      path: "/claimer/draft",
-      icon: <FileTextOutlined />
-    },
-    {
-      title: "Pending Claims",
-      path: "/claimer/pending",
-      icon: <FileTextOutlined />
-    },
-    {
-      title: "Approved Claims",
-      path: "/claimer/approved",
-      icon: <FileTextOutlined />
-    },
-    {
-      title: "Paid Claims",
-      path: "/claimer/paid",
-      icon: <FileTextOutlined />
-    },
-    {
-      title: "Rejected Claims",
-      path: "/claimer/rejected",
-      icon: <FileTextOutlined />
-    }
-  ];
-
+ 
   const generalMenuItems = [
     {
       title: "Home",
       path: "/",
-      icon: <HomeOutlined />
-    },
-    {
-      title: "Profile",
-      path: "/profile",
-      icon: <UserOutlined />
+      icon: <HomeOutlined />,
+      color: "#FF6B6B"
     }
   ];
 
   const renderAdminMenuItems = () => (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {adminMenuItems.map((item, idx) =>
         !item.children ? (
-          <Link
+          <motion.div
             key={idx}
-            to={item.path}
-            className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
-              location.pathname === item.path
-                ? 'bg-[#13C2C2] text-white font-medium shadow-sm'
-                : 'text-gray-300 hover:bg-[#13C2C2]/50 hover:text-white'
-            }`}
+            whileHover={{ scale: 1.02, x: 5 }}
+            whileTap={{ scale: 0.98 }}
+            onHoverStart={() => setHoveredItem(idx)}
+            onHoverEnd={() => setHoveredItem(null)}
           >
-            <span className="text-lg">{item.icon}</span>
-            {isOpen && <span>{item.title}</span>}
-          </Link>
-        ) : (
-          <div key={idx}>
-            <button
-              onClick={() => setIsWarehouseOpen((open) => !open)}
-              className={`flex items-center justify-between w-full px-4 py-2.5 rounded-lg transition-all duration-200 ${
-                isWarehouseOpen ? 'bg-[#13C2C2] text-white' : 'text-gray-300 hover:bg-[#13C2C2]/50 hover:text-white'
+            <Link
+              to={item.path}
+              className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
+                location.pathname === item.path
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                  : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
               }`}
             >
-              <span className="flex items-center gap-3">
-                {item.icon}
-                {isOpen && <span>{item.title}</span>}
-              </span>
-              {isOpen && (isWarehouseOpen ? <DownOutlined /> : <RightOutlined />)}
-            </button>
-            {isWarehouseOpen && isOpen && (
-              <div className="ml-6 mt-1 flex flex-col gap-1">
-                {item.children.map((child, cidx) => (
-                  <Link
-                    key={cidx}
-                    to={child.path}
-                    className={`flex items-center gap-3 px-4 py-2 rounded-lg text-base font-medium ${
-                      location.pathname === child.path
-                        ? 'bg-white text-[#13C2C2] shadow'
-                        : 'text-gray-300 hover:bg-white hover:text-[#13C2C2]'
-                    }`}
-                  >
-                    <span className="text-xl">{child.icon}</span>
-                    <span>{child.title}</span>
-                  </Link>
-                ))}
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <div className={`relative z-10 p-2 rounded-lg transition-colors duration-300`} style={{backgroundColor: hoveredItem === idx ? `${item.color}20` : 'transparent'}}>
+                <span className="text-xl" style={{color: location.pathname === item.path ? 'white' : item.color}}>{item.icon}</span>
               </div>
-            )}
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.span
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -10 }}
+                    className="relative z-10 font-medium"
+                  >
+                    {item.title}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </Link>
+          </motion.div>
+        ) : (
+          <div key={idx}>
+            <motion.button
+              whileHover={{ scale: 1.02, x: 5 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setIsWarehouseOpen((open) => !open)}
+              className={`group relative flex items-center justify-between w-full px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
+                location.pathname === item.path
+                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                  : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
+              }`}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+              <span className="relative z-10 flex items-center gap-4">
+                <div className="p-2 rounded-lg" style={{backgroundColor: `${item.color}20`}}>
+                  <span className="text-xl" style={{color: item.color}}>{item.icon}</span>
+                </div>
+                <AnimatePresence>
+                  {isOpen && (
+                    <motion.span
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      exit={{ opacity: 0, x: -10 }}
+                      className="font-medium"
+                    >
+                      {item.title}
+                    </motion.span>
+                  )}
+                </AnimatePresence>
+              </span>
+              <AnimatePresence>
+                {isOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, rotate: -90 }}
+                    animate={{ opacity: 1, rotate: isWarehouseOpen ? 0 : -90 }}
+                    exit={{ opacity: 0, rotate: -90 }}
+                    className="relative z-10"
+                  >
+                    <DownOutlined className="text-sm" />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </motion.button>
+            <AnimatePresence>
+              {isWarehouseOpen && isOpen && (
+                <motion.div
+                  initial={{ opacity: 0, height: 0 }}
+                  animate={{ opacity: 1, height: "auto" }}
+                  exit={{ opacity: 0, height: 0 }}
+                  className="ml-6 mt-2 space-y-1 overflow-hidden"
+                >
+                  {item.children.map((child, cidx) => (
+                    <motion.div
+                      key={cidx}
+                      initial={{ opacity: 0, x: -20 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: cidx * 0.1 }}
+                    >
+                      <Link
+                        to={child.path}
+                        className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 overflow-hidden ${
+                          location.pathname === child.path
+                            ? 'bg-white text-indigo-600 shadow-md transform translate-x-2'
+                            : 'text-gray-400 hover:bg-white/10 hover:text-white hover:translate-x-1'
+                        }`}
+                      >
+                        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                        <div className="relative z-10 p-1.5 rounded-md" style={{backgroundColor: `${child.color}15`}}>
+                          <span className="text-lg" style={{color: child.color}}>{child.icon}</span>
+                        </div>
+                        <span className="relative z-10 font-medium">{child.title}</span>
+                      </Link>
+                    </motion.div>
+                  ))}
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
         )
       )}
@@ -221,48 +261,123 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
   );
 
   const renderMenuItems = (items) => (
-    <div className="space-y-1">
+    <div className="space-y-2">
       {items.map((item, index) => (
-        <Link
+        <motion.div
           key={index}
-          to={item.path}
-          className={`flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-200 ${
-            location.pathname === item.path
-              ? 'bg-[#13C2C2] text-white font-medium shadow-sm'
-              : 'text-gray-300 hover:bg-[#13C2C2]/50 hover:text-white'
-          }`}
+          whileHover={{ scale: 1.02, x: 5 }}
+          whileTap={{ scale: 0.98 }}
+          onHoverStart={() => setHoveredItem(index)}
+          onHoverEnd={() => setHoveredItem(null)}
         >
-          <span className="text-lg">{item.icon}</span>
-          {isOpen && <span>{item.title}</span>}
-        </Link>
+          <Link
+            to={item.path}
+            className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
+              location.pathname === item.path
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
+            }`}
+          >
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+            <div className={`relative z-10 p-2 rounded-lg transition-colors duration-300`} style={{backgroundColor: hoveredItem === index ? `${item.color}20` : 'transparent'}}>
+              <span className="text-xl" style={{color: location.pathname === item.path ? 'white' : item.color}}>{item.icon}</span>
+            </div>
+            <AnimatePresence>
+              {isOpen && (
+                <motion.span
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  className="relative z-10 font-medium"
+                >
+                  {item.title}
+                </motion.span>
+              )}
+            </AnimatePresence>
+          </Link>
+        </motion.div>
       ))}
     </div>
   );
 
   const renderClaimsSection = () => (
     <div>
-      <button
+      <motion.button
+        whileHover={{ scale: 1.02, x: 5 }}
+        whileTap={{ scale: 0.98 }}
         onClick={() => setIsClaimsOpen(!isClaimsOpen)}
-        className={`w-full flex items-center justify-between px-4 py-2.5 rounded-lg transition-all duration-200 ${
-          isClaimsOpen ? 'bg-[#13C2C2] text-white' : 'text-gray-300 hover:bg-[#13C2C2]/50 hover:text-white'
+        className={`group relative w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
+          isClaimsOpen 
+            ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25' 
+            : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
         }`}
       >
-        <div className="flex items-center gap-3">
-          <FileTextOutlined className="text-xl" />
-          {isOpen && <span className="font-medium">Claims</span>}
+        <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
+        <div className="relative z-10 flex items-center gap-4">
+          <div className="p-2 rounded-lg bg-blue-500/20">
+            <FileTextOutlined className="text-xl text-blue-400" />
+          </div>
+          <AnimatePresence>
+            {isOpen && (
+              <motion.span
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                className="font-medium"
+              >
+                Claims
+              </motion.span>
+            )}
+          </AnimatePresence>
         </div>
-        {isOpen && (
-          isClaimsOpen ? 
-            <DownOutlined className="text-xs opacity-60" /> : 
-            <RightOutlined className="text-xs opacity-60" />
-        )}
-      </button>
+        <AnimatePresence>
+          {isOpen && (
+            <motion.div
+              initial={{ opacity: 0, rotate: -90 }}
+              animate={{ opacity: 1, rotate: isClaimsOpen ? 0 : -90 }}
+              exit={{ opacity: 0, rotate: -90 }}
+              className="relative z-10"
+            >
+              <DownOutlined className="text-sm opacity-60" />
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </motion.button>
 
-      {isClaimsOpen && isOpen && (
-        <div className="mt-2 ml-4">
-          {renderMenuItems(claimsItems)}
-        </div>
-      )}
+      <AnimatePresence>
+        {isClaimsOpen && isOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: "auto" }}
+            exit={{ opacity: 0, height: 0 }}
+            className="mt-3 ml-6 space-y-1 overflow-hidden"
+          >
+            {claimsItems.map((item, index) => (
+              <motion.div
+                key={index}
+                initial={{ opacity: 0, x: -20 }}
+                animate={{ opacity: 1, x: 0 }}
+                transition={{ delay: index * 0.1 }}
+              >
+                <Link
+                  to={item.path}
+                  className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 overflow-hidden ${
+                    location.pathname === item.path
+                      ? 'bg-white text-indigo-600 shadow-md transform translate-x-2'
+                      : 'text-gray-400 hover:bg-white/10 hover:text-white hover:translate-x-1'
+                  }`}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
+                  <div className="relative z-10 p-1.5 rounded-md" style={{backgroundColor: `${item.color}15`}}>
+                    <span className="text-lg" style={{color: item.color}}>{item.icon}</span>
+                  </div>
+                  <span className="relative z-10 font-medium">{item.title}</span>
+                </Link>
+              </motion.div>
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 
@@ -285,38 +400,61 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
     }
   };
 
+  if (!isOpen) return null;
+
   return (
     <motion.div
       initial={false}
       animate={{
-        width: isOpen ? '260px' : '64px',
-        transition: { duration: 0.3, ease: "easeInOut" }
+        width: '280px',
+        transition: { duration: 0.4, ease: [0.4, 0, 0.2, 1] }
       }}
-      className="bg-[#1A202C] min-h-screen text-gray-200 z-50"
+      className="sticky top-0 z-40 bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900 min-h-screen text-gray-200 shadow-2xl border-r border-slate-700/50"
     >
-      <div className="p-4 flex flex-col h-full">
+      {/* Animated Background Pattern */}
+      <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-400/10 via-purple-400/10 to-pink-400/10"></div>
+        <motion.div
+          animate={{
+            backgroundPosition: ["0% 0%", "100% 100%"],
+          }}
+          transition={{
+            duration: 20,
+            repeat: Infinity,
+            repeatType: "reverse",
+          }}
+          className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent opacity-30"
+          style={{
+            backgroundSize: "200% 200%",
+          }}
+        />
+      </div>
+
+      <div className="relative z-10 p-4 flex flex-col h-full">
         {/* Header */}
-        <div className="text-xl font-bold mb-8 text-center tracking-wide border-b border-gray-700 pb-4 text-white">
-          {isOpen && "Dashboard"}
+        <div className="flex items-center mb-8 pb-4 border-b border-slate-700/50">
+          <div className="w-8 h-8 bg-gradient-to-r from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-lg">
+            <AppstoreOutlined className="text-white text-lg" />
+          </div>
+          <div className="ml-3">
+            <h1 className="text-xl font-bold bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+              Dashboard
+            </h1>
+            <p className="text-xs text-gray-400 mt-0.5">Management System</p>
+          </div>
         </div>
 
         {/* Main Menu */}
         <div className="flex-1 flex flex-col justify-between">
           {/* Menu Items Container */}
-          <div className="space-y-4">
-            {getMenuItems()}
-          </div>
-
-          {/* Logout Section */}
-          <div className="mt-auto pt-4">
-            <div className="border-t border-gray-700"></div>
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 w-full px-4 py-2.5 rounded-lg text-gray-300 hover:bg-[#13C2C2]/50 hover:text-white transition-all duration-200 mt-4"
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
             >
-              <LogoutOutlined className="text-lg" />
-              {isOpen && <span>Logout</span>}
-            </button>
+              {getMenuItems()}
+            </motion.div>
           </div>
         </div>
       </div>
