@@ -1,12 +1,41 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, Table, Button, Tag, Input } from "antd";
-import { EyeOutlined, EditOutlined } from "@ant-design/icons";
+import { 
+  Card, 
+  Table, 
+  Button, 
+  Tag, 
+  Input, 
+  Space, 
+  Typography, 
+  Statistic, 
+  Row, 
+  Col,
+  Badge,
+  Avatar,
+  Tooltip
+} from "antd";
+import { 
+  EyeOutlined, 
+  EditOutlined, 
+  SearchOutlined,
+  ShoppingCartOutlined,
+  DollarOutlined,
+  CheckCircleOutlined,
+  StopOutlined,
+  UserOutlined,
+  ClockCircleOutlined,
+  SyncOutlined,
+  CarOutlined,
+  QuestionCircleOutlined
+} from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
 // import CreateOrder from "./CreateOrder"; // Assuming order creation is not from this page
 // import DeleteOrder from "./DeleteOrder"; // Assuming order deletion is not from this page
 import ViewOrderDetail from "./ViewOrderDetail"; // Modal to view order details
 import UpdateOrderStatus from "./UpdateOrderStatus"; // Modal to update order status
+
+const { Title, Text } = Typography;
 
 // Sample data for orders based on the provided schema
 const sampleOrders = [
@@ -72,26 +101,32 @@ const OrderManagement = () => {
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isUpdateStatusModalVisible, setIsUpdateStatusModalVisible] = useState(false);
 
+  // Calculate statistics
+  const stats = {
+    total: orders.length,
+    pending: orders.filter(o => o.order_status_id === 'os1').length,
+    processing: orders.filter(o => o.order_status_id === 'os2').length,
+    completed: orders.filter(o => ['os3', 'os4'].includes(o.order_status_id)).length,
+    totalValue: orders.reduce((sum, o) => sum + o.total_price, 0)
+  };
+
   const handleSearch = useCallback(
     debounce((value) => {
       setSearchText(value);
       setPagination((prev) => ({ ...prev, current: 1 }));
-      // TODO: When using real API, call fetchOrders here
     }, 500),
     []
   );
 
   useEffect(() => {
-    // Filter sample data by searchText (search by receiver name or phone, maybe user ID)
     const filtered = sampleOrders.filter(order =>
       order.receiver_name.toLowerCase().includes(searchText.toLowerCase()) ||
       order.receiver_phone.toString().includes(searchText) ||
-      order.user_id.toLowerCase().includes(searchText.toLowerCase())
+      order._id.toLowerCase().includes(searchText.toLowerCase())
     );
     setOrders(filtered);
     setPagination(prev => ({ ...prev, total: filtered.length }));
-
-  }, [searchText]); // Dependency includes searchText only for local filtering
+  }, [searchText]);
 
   // TODO: Implement fetchOrders when using real API
   // const fetchOrders = async (page, pageSize, keyword) => { ... };
@@ -112,10 +147,9 @@ const OrderManagement = () => {
   };
 
   const handleUpdateStatusSuccess = (id, newStatusId) => {
-    toast.success(`Order ${id} status updated successfully (Simulated)`);
+    toast.success(`Cập nhật trạng thái đơn hàng ${id} thành công`);
     setIsUpdateStatusModalVisible(false);
     setSelectedOrder(null);
-     // Update sample data (temporary)
     const updatedOrders = orders.map(order =>
       order._id === id ? { ...order, order_status_id: newStatusId } : order
     );
@@ -127,114 +161,314 @@ const OrderManagement = () => {
     setSelectedOrder(null);
   };
 
+  const getStatusInfo = (statusId) => {
+    switch(statusId) {
+      case 'os1':
+        return { color: '#faad14', text: 'Chờ xử lý', icon: <ClockCircleOutlined /> };
+      case 'os2':
+        return { color: '#13C2C2', text: 'Đang xử lý', icon: <SyncOutlined spin /> };
+      case 'os3':
+        return { color: '#1890ff', text: 'Đang giao', icon: <CarOutlined /> };
+      case 'os4':
+        return { color: '#52c41a', text: 'Đã giao', icon: <CheckCircleOutlined /> };
+      case 'os5':
+        return { color: '#ff4d4f', text: 'Đã hủy', icon: <StopOutlined /> };
+      default:
+        return { color: 'default', text: 'Không xác định', icon: <QuestionCircleOutlined /> };
+    }
+  };
 
   const columns = [
     {
-      title: "ID Đơn hàng",
+      title: "Mã đơn hàng",
       dataIndex: "_id",
       key: "_id",
+      render: (_id) => (
+        <Text strong style={{ color: '#0D364C' }}>{_id}</Text>
+      ),
     },
-     {
-      title: "ID Người dùng", // TODO: Fetch and display actual username
-      dataIndex: "user_id",
-      key: "user_id",
+    {
+      title: "Khách hàng",
+      key: "customer",
+      render: (_, record) => (
+        <Space>
+          <Avatar 
+            icon={<UserOutlined />}
+            style={{ backgroundColor: '#13C2C2' }}
+          />
+          <div>
+            <Text strong style={{ color: '#0D364C', display: 'block' }}>
+              {record.receiver_name}
+            </Text>
+            <Text type="secondary" style={{ fontSize: '12px' }}>
+              {record.receiver_phone}
+            </Text>
+          </div>
+        </Space>
+      ),
     },
     {
       title: "Tổng tiền",
       dataIndex: "total_price",
       key: "total_price",
-      render: (price) => price?.toLocaleString('vi-VN') + ' VNĐ'
+      render: (price) => (
+        <Tag color="#13C2C2" style={{ 
+          borderRadius: '16px',
+          padding: '4px 12px',
+          fontSize: '14px',
+          fontWeight: '500'
+        }}>
+          {price?.toLocaleString('vi-VN')} VNĐ
+        </Tag>
+      ),
     },
     {
-      title: "Người nhận",
-      dataIndex: "receiver_name",
-      key: "receiver_name",
-    },
-     {
-      title: "Số điện thoại",
-      dataIndex: "receiver_phone",
-      key: "receiver_phone",
-    },
-     {
-      title: "Trạng thái", // TODO: Fetch and display actual status name
+      title: "Trạng thái",
       dataIndex: "order_status_id",
       key: "order_status_id",
       render: (statusId) => {
-        // Basic mapping for sample data. Replace with fetching status names from API.
-        let color = 'default';
-        let text = statusId;
-        if (statusId === 'os1') { color = 'orange'; text = 'Pending'; }
-        else if (statusId === 'os2') { color = 'blue'; text = 'Processing'; }
-        else if (statusId === 'os3') { color = 'green'; text = 'Shipped'; }
-         else if (statusId === 'os4') { color = 'purple'; text = 'Delivered'; }
-          else if (statusId === 'os5') { color = 'red'; text = 'Cancelled'; }
-        return <Tag color={color}>{text}</Tag>;
+        const status = getStatusInfo(statusId);
+        return (
+          <Badge 
+            status={status.color === '#52c41a' ? 'success' : 'processing'} 
+            text={
+              <Tag 
+                color={status.color}
+                icon={status.icon}
+                style={{ 
+                  borderRadius: '16px',
+                  fontWeight: '500',
+                  padding: '4px 12px'
+                }}
+              >
+                {status.text}
+              </Tag>
+            }
+          />
+        );
       }
     },
     {
       title: "Ngày tạo",
       dataIndex: "createdAt",
       key: "createdAt",
-      render: (date) => new Date(date).toLocaleString()
+      render: (date) => (
+        <Text type="secondary">
+          {new Date(date).toLocaleDateString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          })}
+        </Text>
+      )
     },
     {
       title: "Hành động",
       key: "action",
       render: (_, record) => (
-        <div className="flex gap-2">
-          <Button icon={<EyeOutlined />} onClick={() => handleViewDetail(record)} />
-          <Button icon={<EditOutlined />} onClick={() => handleUpdateStatusClick(record)} /> {/* Use Edit for status update */}
-          {/* <Button icon={<DeleteOutlined />} danger onClick={() => handleDeleteClick(record)} /> */}
-        </div>
+        <Space size="small">
+          <Tooltip title="Xem chi tiết">
+            <Button 
+              type="text"
+              icon={<EyeOutlined />} 
+              onClick={() => handleViewDetail(record)}
+              style={{ 
+                color: '#13C2C2',
+                borderColor: '#13C2C2'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = `#13C2C210`;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+              }}
+            />
+          </Tooltip>
+          <Tooltip title="Cập nhật trạng thái">
+            <Button 
+              type="text"
+              icon={<EditOutlined />} 
+              onClick={() => handleUpdateStatusClick(record)}
+              style={{ 
+                color: '#0D364C',
+                borderColor: '#0D364C'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.backgroundColor = `#0D364C10`;
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.backgroundColor = 'transparent';
+              }}
+            />
+          </Tooltip>
+        </Space>
       ),
     },
   ];
 
   return (
-    <div className="overflow-x-auto" >
+    <div style={{ 
+      padding: '24px',
+      background: `linear-gradient(135deg, #13C2C205 0%, #0D364C05 100%)`,
+      minHeight: '100vh'
+    }}>
+      {/* Statistics Cards */}
+      <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
+        <Col xs={24} sm={6}>
+          <Card 
+            style={{ 
+              borderRadius: '12px',
+              border: `1px solid #13C2C230`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Statistic
+              title={<Text style={{ color: '#0D364C' }}>Tổng đơn hàng</Text>}
+              value={stats.total}
+              prefix={<ShoppingCartOutlined style={{ color: '#13C2C2' }} />}
+              valueStyle={{ color: '#13C2C2', fontWeight: 'bold' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card 
+            style={{ 
+              borderRadius: '12px',
+              border: `1px solid #13C2C230`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Statistic
+              title={<Text style={{ color: '#0D364C' }}>Chờ xử lý</Text>}
+              value={stats.pending}
+              prefix={<ClockCircleOutlined style={{ color: '#faad14' }} />}
+              valueStyle={{ color: '#faad14', fontWeight: 'bold' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card 
+            style={{ 
+              borderRadius: '12px',
+              border: `1px solid #13C2C230`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Statistic
+              title={<Text style={{ color: '#0D364C' }}>Đang xử lý</Text>}
+              value={stats.processing}
+              prefix={<SyncOutlined style={{ color: '#13C2C2' }} />}
+              valueStyle={{ color: '#13C2C2', fontWeight: 'bold' }}
+            />
+          </Card>
+        </Col>
+        <Col xs={24} sm={6}>
+          <Card 
+            style={{ 
+              borderRadius: '12px',
+              border: `1px solid #13C2C230`,
+              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+            }}
+          >
+            <Statistic
+              title={<Text style={{ color: '#0D364C' }}>Tổng doanh thu</Text>}
+              value={stats.totalValue}
+              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
+              valueStyle={{ color: '#52c41a', fontWeight: 'bold' }}
+              formatter={(value) => `${value?.toLocaleString('vi-VN')} VNĐ`}
+            />
+          </Card>
+        </Col>
+      </Row>
+
+      {/* Main Content Card */}
       <Card
-        className="shadow-md"
-        title="Danh sách Đơn hàng"
-        // No "Add" button as orders are created via checkout flow
+        style={{
+          borderRadius: '16px',
+          boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+          border: `1px solid #13C2C220`
+        }}
+        title={
+          <Space>
+            <Avatar 
+              style={{ backgroundColor: '#13C2C2' }} 
+              icon={<ShoppingCartOutlined />} 
+            />
+            <Title level={3} style={{ margin: 0, color: '#0D364C' }}>
+              Quản lý Đơn hàng
+            </Title>
+          </Space>
+        }
       >
-        <div className="mb-4 flex justify-start items-center">
-           {/* Search bar moved to left as per previous user request */}
+        {/* Header Actions */}
+        <div style={{ 
+          marginBottom: '24px', 
+          display: 'flex', 
+          justifyContent: 'space-between', 
+          alignItems: 'center',
+          flexWrap: 'wrap',
+          gap: '16px'
+        }}>
           <Input.Search
             placeholder="Tìm kiếm đơn hàng..."
             onChange={(e) => handleSearch(e.target.value)}
-            style={{ width: 300 }}
+            style={{ 
+              width: '320px',
+              maxWidth: '100%'
+            }}
+            size="large"
+            prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
             allowClear
+            onSearch={(value) => handleSearch(value)}
           />
-           {/* No create button here */}
         </div>
+
+        {/* Table */}
         <Table
           rowKey="_id"
-          // loading={loading}
           columns={columns}
           dataSource={orders}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
             total: pagination.total,
+            showSizeChanger: true,
+            showQuickJumper: true,
+            showTotal: (total, range) => (
+              <Text style={{ color: '#0D364C' }}>
+                Hiển thị {range[0]}-{range[1]} trong tổng số {total} đơn hàng
+              </Text>
+            ),
             onChange: (page, pageSize) => {
               setPagination((prev) => ({
                 ...prev,
                 current: page,
                 pageSize: pageSize || 10,
               }));
-              // TODO: When using real API, call fetchOrders(page, pageSize, searchText) here
             },
           }}
+          style={{
+            borderRadius: '12px',
+            overflow: 'hidden'
+          }}
+          rowClassName={(record, index) => 
+            index % 2 === 0 ? '' : 'ant-table-row-alternate'
+          }
         />
       </Card>
 
-      <ViewOrderDetail
-        visible={isViewDetailModalVisible}
-        orderData={selectedOrder}
-        onClose={handleCloseViewDetailModal}
-      />
+      {/* Modals */}
+      {selectedOrder && (
+        <ViewOrderDetail
+          visible={isViewDetailModalVisible}
+          orderData={selectedOrder}
+          onClose={handleCloseViewDetailModal}
+        />
+      )}
 
-       {selectedOrder && (
+      {selectedOrder && (
         <UpdateOrderStatus
           visible={isUpdateStatusModalVisible}
           orderData={selectedOrder}
@@ -243,7 +477,47 @@ const OrderManagement = () => {
         />
       )}
 
-      {/* Delete modal omitted */}
+      <style>
+        {`
+          .ant-table-row-alternate {
+            background-color: #13C2C205 !important;
+          }
+          
+          .ant-table-thead > tr > th {
+            background-color: #0D364C !important;
+            color: white !important;
+            font-weight: 600 !important;
+            border-bottom: 2px solid #13C2C2 !important;
+          }
+          
+          .ant-table-tbody > tr:hover > td {
+            background-color: #13C2C210 !important;
+          }
+          
+          .ant-pagination-item-active {
+            border-color: #13C2C2 !important;
+            background-color: #13C2C2 !important;
+          }
+          
+          .ant-pagination-item-active a {
+            color: white !important;
+          }
+          
+          .ant-pagination-item:hover {
+            border-color: #13C2C2 !important;
+          }
+          
+          .ant-pagination-item:hover a {
+            color: #13C2C2 !important;
+          }
+          
+          .ant-input:focus,
+          .ant-input-focused {
+            border-color: #13C2C2 !important;
+            box-shadow: 0 0 0 2px #13C2C220 !important;
+          }
+        `}
+      </style>
     </div>
   );
 };

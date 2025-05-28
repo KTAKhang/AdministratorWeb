@@ -1,5 +1,4 @@
 import { useState, useMemo, useRef, useEffect } from "react";
-import { createPortal } from "react-dom";
 import { Menu, Search, Bell, Settings, User, LogOut, ChevronDown } from "lucide-react";
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useNavigate } from 'react-router-dom';
@@ -11,7 +10,6 @@ const Navbar = () => {
   const [searchValue, setSearchValue] = useState("");
   const [notifications] = useState(3); // Mock notification count
   const avatarBtnRef = useRef();
-  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 });
   const navigate = useNavigate();
 
   const debouncedToggleSidebar = useMemo(() => {
@@ -24,27 +22,11 @@ const Navbar = () => {
     setIsDropdownOpen((open) => !open);
   };
 
-  // Tính toán vị trí dropdown khi mở
-  useEffect(() => {
-    if (isDropdownOpen && avatarBtnRef.current) {
-      const rect = avatarBtnRef.current.getBoundingClientRect();
-      setDropdownPos({
-        top: rect.bottom + window.scrollY + 12, // 12px margin top
-        left: rect.right - 256 + window.scrollX, // 256px là width dropdown
-      });
-    }
-  }, [isDropdownOpen]);
-
   // Đóng dropdown khi click ra ngoài
   useEffect(() => {
     if (!isDropdownOpen) return;
     const handleClick = (e) => {
-      if (
-        avatarBtnRef.current &&
-        !avatarBtnRef.current.contains(e.target) &&
-        document.getElementById('user-dropdown-portal') &&
-        !document.getElementById('user-dropdown-portal').contains(e.target)
-      ) {
+      if (avatarBtnRef.current && !avatarBtnRef.current.contains(e.target)) {
         setIsDropdownOpen(false);
       }
     };
@@ -69,7 +51,7 @@ const Navbar = () => {
   };
 
   return (
-    <div className="w-full relative overflow-hidden sticky top-0 z-50" style={{background: 'linear-gradient(135deg, #0D364C 0%, #13C2C2 100%)'}}>
+    <div className="w-full relative overflow-visible sticky top-0 z-50" style={{background: 'linear-gradient(135deg, #0D364C 0%, #13C2C2 100%)'}}>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
         <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20 animate-pulse" style={{backgroundColor: '#13C2C2'}}></div>
@@ -131,71 +113,59 @@ const Navbar = () => {
                 </div>
                 <ChevronDown className={`w-4 h-4 text-white transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
-              {/* Dropdown Portal */}
-              {isDropdownOpen && createPortal(
-                <>
-                  {/* Backdrop */}
-                  <div className="fixed inset-0 z-[9998]" onClick={() => setIsDropdownOpen(false)}></div>
-                  <div
-                    id="user-dropdown-portal"
-                    className="absolute w-64 z-[9999]"
-                    style={{
-                      top: dropdownPos.top,
-                      left: dropdownPos.left,
-                      position: 'absolute',
-                    }}
-                  >
-                    <div 
-                      className="backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200"
-                      style={{background: 'rgba(255, 255, 255, 0.95)'}}
-                    >
-                      {/* User info header */}
-                      <div className="p-4 border-b border-gray-200/50" style={{background: 'linear-gradient(135deg, #13C2C2, #0D364C)'}}>
-                        <div className="flex items-center space-x-3">
-                          <img 
-                            src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=60&h=60&fit=crop&crop=face" 
-                            alt="User Avatar" 
-                            className="w-12 h-12 rounded-full border-2 border-white/50"
-                          />
-                          <div>
-                            <p className="font-semibold text-white">Người dùng</p>
-                            <p className="text-sm text-white/80">user@email.com</p>
-                          </div>
-                        </div>
-                      </div>
 
-                      {/* Menu items */}
-                      <div className="py-2">
-                        <button 
-                          onClick={() => navigate("/admin/profile")}
-                          className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
-                        >
-                          <User className="w-5 h-5" style={{color: '#13C2C2'}} />
-                          <span>Trang cá nhân</span>
-                        </button>
-                        
-                        <button 
-                          onClick={() => navigate("/admin/change-password")}
-                          className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
-                        >
-                          <Settings className="w-5 h-5" style={{color: '#13C2C2'}} />
-                          <span>Đổi mật khẩu</span>
-                        </button>
-                        
-                        <div className="border-t border-gray-200/50 mt-2 pt-2">
-                          <button 
-                            onClick={handleLogout}
-                            className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-all duration-200 hover:translate-x-1"
-                          >
-                            <LogOut className="w-5 h-5" />
-                            <span>Đăng xuất</span>
-                          </button>
+              {/* Dropdown Menu - không dùng portal */}
+              {isDropdownOpen && (
+                <div className="absolute right-0 top-full mt-3 w-64 z-[9999]">
+                  <div 
+                    className="backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200"
+                    style={{background: 'rgba(255, 255, 255, 0.95)'}}
+                  >
+                    {/* User info header */}
+                    <div className="p-4 border-b border-gray-200/50" style={{background: 'linear-gradient(135deg, #13C2C2, #0D364C)'}}>
+                      <div className="flex items-center space-x-3">
+                        <img 
+                          src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=60&h=60&fit=crop&crop=face" 
+                          alt="User Avatar" 
+                          className="w-12 h-12 rounded-full border-2 border-white/50"
+                        />
+                        <div>
+                          <p className="font-semibold text-white">Người dùng</p>
+                          <p className="text-sm text-white/80">user@email.com</p>
                         </div>
                       </div>
                     </div>
+
+                    {/* Menu items */}
+                    <div className="py-2">
+                      <button 
+                        onClick={() => navigate("/admin/profile")}
+                        className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
+                      >
+                        <User className="w-5 h-5" style={{color: '#13C2C2'}} />
+                        <span>Trang cá nhân</span>
+                      </button>
+                      
+                      <button 
+                        onClick={() => navigate("/admin/change-password")}
+                        className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
+                      >
+                        <Settings className="w-5 h-5" style={{color: '#13C2C2'}} />
+                        <span>Đổi mật khẩu</span>
+                      </button>
+                      
+                      <div className="border-t border-gray-200/50 mt-2 pt-2">
+                        <button 
+                          onClick={handleLogout}
+                          className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-all duration-200 hover:translate-x-1"
+                        >
+                          <LogOut className="w-5 h-5" />
+                          <span>Đăng xuất</span>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </>,
-                document.body
+                </div>
               )}
             </div>
           </div>
