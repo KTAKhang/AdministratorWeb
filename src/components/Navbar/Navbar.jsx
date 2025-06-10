@@ -2,6 +2,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { Menu, Search, Bell, Settings, User, LogOut, ChevronDown } from "lucide-react";
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useNavigate } from 'react-router-dom';
+import { useDispatch } from "react-redux";
+import { logout } from "../../redux/actions/authActions";
 
 const Navbar = () => {
   const { toggleSidebar } = useSidebar();
@@ -11,7 +13,7 @@ const Navbar = () => {
   const [notifications] = useState(3); // Mock notification count
   const avatarBtnRef = useRef();
   const navigate = useNavigate();
-
+  const dispatch = useDispatch();
   const debouncedToggleSidebar = useMemo(() => {
     return () => {
       setTimeout(toggleSidebar, 300);
@@ -22,17 +24,6 @@ const Navbar = () => {
     setIsDropdownOpen((open) => !open);
   };
 
-  // Đóng dropdown khi click ra ngoài
-  useEffect(() => {
-    if (!isDropdownOpen) return;
-    const handleClick = (e) => {
-      if (avatarBtnRef.current && !avatarBtnRef.current.contains(e.target)) {
-        setIsDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handleClick);
-    return () => document.removeEventListener("mousedown", handleClick);
-  }, [isDropdownOpen]);
 
   const handleHome = () => {
     navigate("/");
@@ -43,19 +34,22 @@ const Navbar = () => {
     console.log("Search for:", searchValue);
   };
 
-  // Hàm logout
   const handleLogout = () => {
-    localStorage.removeItem('token');
-    localStorage.removeItem('role');
-    navigate('/');
+    const confirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
+    if (confirmed) {
+      dispatch(logout());
+      localStorage.removeItem('access_token');
+      localStorage.removeItem('role');
+      navigate('/');
+    }
   };
 
   return (
-    <div className="w-full relative overflow-visible sticky top-0 z-50" style={{background: 'linear-gradient(135deg, #0D364C 0%, #13C2C2 100%)'}}>
+    <div className="w-full relative overflow-visible sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #0D364C 0%, #13C2C2 100%)' }}>
       {/* Animated background elements */}
       <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20 animate-pulse" style={{backgroundColor: '#13C2C2'}}></div>
-        <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full opacity-15 animate-pulse animation-delay-2000" style={{backgroundColor: '#0D364C'}}></div>
+        <div className="absolute -top-10 -right-10 w-40 h-40 rounded-full opacity-20 animate-pulse" style={{ backgroundColor: '#13C2C2' }}></div>
+        <div className="absolute -bottom-10 -left-10 w-32 h-32 rounded-full opacity-15 animate-pulse animation-delay-2000" style={{ backgroundColor: '#0D364C' }}></div>
       </div>
 
       {/* Main navbar content */}
@@ -63,18 +57,18 @@ const Navbar = () => {
         <div className="flex justify-between items-center p-4">
           {/* Left Section: Sidebar Toggle & Logo */}
           <div className="flex items-center space-x-4">
-            <button 
-              onClick={debouncedToggleSidebar} 
+            <button
+              onClick={debouncedToggleSidebar}
               className="text-white p-2 rounded-xl hover:bg-white/10 transition-all duration-300 transform hover:scale-110 hover:rotate-180"
-              style={{boxShadow: '0 4px 15px rgba(19, 194, 194, 0.2)'}}
+              style={{ boxShadow: '0 4px 15px rgba(19, 194, 194, 0.2)' }}
             >
               <Menu className="w-6 h-6" />
             </button>
-            
-            <button 
+
+            <button
               onClick={handleHome}
               className="group relative overflow-hidden rounded-2xl p-2 transition-all duration-300 hover:scale-105"
-              style={{background: 'linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))'}}
+              style={{ background: 'linear-gradient(45deg, rgba(255,255,255,0.1), rgba(255,255,255,0.05))' }}
             >
               <img
                 alt="Toy Shop Logo"
@@ -104,9 +98,9 @@ const Navbar = () => {
                 className="flex items-center space-x-2 p-2 rounded-full hover:bg-white/10 transition-all duration-300 transform hover:scale-105 group"
               >
                 <div className="relative">
-                  <img 
-                    src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face" 
-                    alt="User Avatar" 
+                  <img
+                    src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face"
+                    alt="User Avatar"
                     className="w-12 h-12 rounded-full object-cover border-2 border-white/30 group-hover:border-white/60 transition-all duration-300"
                   />
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent to-white/20 group-hover:to-white/40 transition-all duration-300"></div>
@@ -117,16 +111,16 @@ const Navbar = () => {
               {/* Dropdown Menu - không dùng portal */}
               {isDropdownOpen && (
                 <div className="absolute right-0 top-full mt-3 w-64 z-[9999]">
-                  <div 
+                  <div
                     className="backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200"
-                    style={{background: 'rgba(255, 255, 255, 0.95)'}}
+                    style={{ background: 'rgba(255, 255, 255, 0.95)' }}
                   >
                     {/* User info header */}
-                    <div className="p-4 border-b border-gray-200/50" style={{background: 'linear-gradient(135deg, #13C2C2, #0D364C)'}}>
+                    <div className="p-4 border-b border-gray-200/50" style={{ background: 'linear-gradient(135deg, #13C2C2, #0D364C)' }}>
                       <div className="flex items-center space-x-3">
-                        <img 
-                          src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=60&h=60&fit=crop&crop=face" 
-                          alt="User Avatar" 
+                        <img
+                          src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=60&h=60&fit=crop&crop=face"
+                          alt="User Avatar"
                           className="w-12 h-12 rounded-full border-2 border-white/50"
                         />
                         <div>
@@ -138,25 +132,25 @@ const Navbar = () => {
 
                     {/* Menu items */}
                     <div className="py-2">
-                      <button 
+                      <button
                         onClick={() => navigate("/admin/profile")}
                         className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
                       >
-                        <User className="w-5 h-5" style={{color: '#13C2C2'}} />
+                        <User className="w-5 h-5" style={{ color: '#13C2C2' }} />
                         <span>Trang cá nhân</span>
                       </button>
-                      
-                      <button 
+
+                      <button
                         onClick={() => navigate("/admin/change-password")}
                         className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
                       >
-                        <Settings className="w-5 h-5" style={{color: '#13C2C2'}} />
+                        <Settings className="w-5 h-5" style={{ color: '#13C2C2' }} />
                         <span>Đổi mật khẩu</span>
                       </button>
-                      
+
                       <div className="border-t border-gray-200/50 mt-2 pt-2">
-                        <button 
-                          onClick={handleLogout}
+                        <button
+                          onClick={() => { console.log("clicked"); handleLogout(); }}
                           className="w-full flex items-center space-x-3 px-4 py-3 text-red-600 hover:bg-red-50 transition-all duration-200 hover:translate-x-1"
                         >
                           <LogOut className="w-5 h-5" />
@@ -172,7 +166,7 @@ const Navbar = () => {
         </div>
 
         {/* Bottom gradient border */}
-        <div className="h-1 w-full" style={{background: 'linear-gradient(90deg, #13C2C2, transparent, #13C2C2)'}}></div>
+        <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #13C2C2, transparent, #13C2C2)' }}></div>
       </div>
 
       <style jsx>{`
@@ -180,11 +174,9 @@ const Navbar = () => {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }
         }
-        
         .animation-delay-2000 {
           animation-delay: 2s;
         }
-        
         @keyframes slide-in-from-top-2 {
           from {
             opacity: 0;
@@ -195,15 +187,12 @@ const Navbar = () => {
             transform: translateY(0);
           }
         }
-        
         .animate-in {
           animation-fill-mode: both;
         }
-        
         .slide-in-from-top-2 {
           animation-name: slide-in-from-top-2;
         }
-        
         .duration-200 {
           animation-duration: 200ms;
         }

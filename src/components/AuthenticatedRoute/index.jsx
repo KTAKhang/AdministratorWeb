@@ -1,10 +1,17 @@
+import { useSelector } from "react-redux";
 import { Navigate } from "react-router-dom";
 
 const AuthenticatedRoute = ({ children }) => {
-  const token = localStorage.getItem("token");
+  const { token, role } = useSelector((state) => state.auth);
+  const isAuthenticated = !!token;
 
-  if (token === null) {
-    return <>Not authenticate</>;
+  if (typeof children === 'function') {
+    return children({ isAuthenticated, role });
+  }
+
+  // Nếu component cần authentication
+  if (!isAuthenticated) {
+    return <Navigate to="/" />;
   }
 
   return children;
