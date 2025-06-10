@@ -1,12 +1,13 @@
 import { useState, useEffect } from "react";
-import { 
-  Form, 
-  Input, 
-  Button, 
-  Card, 
-  Switch, 
-  Upload, 
-  Modal, 
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Form,
+  Input,
+  Button,
+  Card,
+  Switch,
+  Upload,
+  Modal,
   Space,
   Typography,
   Divider,
@@ -14,20 +15,23 @@ import {
   Row,
   Col
 } from "antd";
-import { 
-  PlusOutlined, 
-  UploadOutlined, 
+import {
+  PlusOutlined,
+  UploadOutlined,
   EditOutlined,
   SaveOutlined,
-  CloseOutlined 
+  CloseOutlined
 } from "@ant-design/icons";
 import PropTypes from "prop-types";
+import { updateCategoryRequest } from "../../redux/actions/categoryActions";
 
 const { Title, Text } = Typography;
 
 const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
+  const dispatch = useDispatch();
+  const { updateLoading, updateError } = useSelector(state => state.category);
+
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
@@ -52,25 +56,70 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
         setFileList([]);
       }
     } else if (!visible) {
-       form.resetFields();
-       setFileList([]);
-       setPreviewImage("");
-       setModalVisible(false);
+      form.resetFields();
+      setFileList([]);
+      setPreviewImage("");
+      setModalVisible(false);
     }
   }, [visible, categoryData, form]);
 
+  // Handle update error
+  useEffect(() => {
+    if (updateError) {
+      message.error(updateError);
+    }
+  }, [updateError]);
+
   const handleFinish = (values) => {
-    setLoading(true);
-    // Simulated update
-    console.log('Updating category:', values);
-    setTimeout(() => {
-      setLoading(false);
-      message.success('Cập nhật category thành công!');
-      // Simulate success
-      onSuccess && onSuccess(categoryData._id, values);
-      onClose && onClose();
-    }, 1000);
+    const token = localStorage.getItem('authToken') || localStorage.getItem('token');
+
+    if (!token) {
+      message.error('Không tìm thấy token xác thực!');
+      return;
+    }
+
+    // Prepare data for API
+    const updateData = {
+      id: categoryData._id,
+      name: values.name,
+      status: Boolean(values.status), // Ensure boolean value
+      token: token
+    };
+
+    // Add image if user selected a new one
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      updateData.image = fileList[0].originFileObj;
+    }
+
+    console.log('Update data being sent:', updateData);
+    console.log('Status value:', values.status, 'Type:', typeof values.status);
+
+    // Dispatch update action
+    dispatch(updateCategoryRequest(updateData));
   };
+
+  // Handle successful update
+  useEffect(() => {
+    if (!updateLoading && !updateError && visible) {
+      // Check if update was successful by comparing with previous loading state
+      const wasLoading = localStorage.getItem('categoryUpdateLoading');
+      if (wasLoading === 'true') {
+        message.success('Cập nhật category thành công!');
+        localStorage.removeItem('categoryUpdateLoading');
+        onSuccess && onSuccess(categoryData._id);
+        onClose && onClose();
+      }
+    }
+  }, [updateLoading, updateError, visible, categoryData, onSuccess, onClose]);
+
+  // Track loading state
+  useEffect(() => {
+    if (updateLoading) {
+      localStorage.setItem('categoryUpdateLoading', 'true');
+    } else {
+      localStorage.removeItem('categoryUpdateLoading');
+    }
+  }, [updateLoading]);
 
   const handlePreview = async (file) => {
     if (!file.url && !file.preview) {
@@ -96,6 +145,23 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
       reader.onerror = (error) => reject(error);
     });
 
+  // File validation
+  const beforeUpload = (file) => {
+    const isValidType = file.type === 'image/jpeg' || file.type === 'image/png' || file.type === 'image/jpg';
+    if (!isValidType) {
+      message.error('Chỉ được tải lên file JPG/PNG!');
+      return false;
+    }
+
+    const isValidSize = file.size / 1024 / 1024 < 2;
+    if (!isValidSize) {
+      message.error('Kích thước file phải nhỏ hơn 2MB!');
+      return false;
+    }
+
+    return false; // Prevent auto upload
+  };
+
   const uploadButton = (
     <div style={{ color: '#13C2C2' }}>
       <PlusOutlined />
@@ -107,9 +173,9 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
     <Modal
       open={visible}
       title={
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 8,
           color: '#0D364C'
         }}>
@@ -163,39 +229,33 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
                 name="name"
                 rules={[
                   { required: true, message: "Vui lòng nhập tên category!" },
-                  { min: 2, message: "Tên category phải có ít nhất 2 ký tự!" }
+                  { min: 2, message: "Tên category phải có ít nhất 2 ký tự!" },
+                  { max: 50, message: "Tên category không được quá 50 ký tự!" }
                 ]}
               >
-                <Input 
-                  placeholder="Nhập tên category" 
+                <Input
+                  placeholder="Nhập tên category"
                   style={{
                     borderRadius: '8px',
                     borderColor: '#d1d5db',
                     fontSize: '14px'
                   }}
-                  styles={{
-                    input: {
-                      '&:focus': {
-                        borderColor: '#13C2C2',
-                        boxShadow: '0 0 0 2px rgba(19, 194, 194, 0.2)'
-                      }
-                    }
-                  }}
+                  disabled={updateLoading}
                 />
               </Form.Item>
             </Col>
 
             <Col span={24}>
-              <Divider 
-                style={{ 
+              <Divider
+                style={{
                   margin: '16px 0',
                   borderColor: '#e5e7eb'
-                }} 
+                }}
               />
             </Col>
 
             <Col span={24}>
-              <Form.Item 
+              <Form.Item
                 label={
                   <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
                     Hình ảnh Category
@@ -206,10 +266,11 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
                 <Upload
                   listType="picture-card"
                   maxCount={1}
-                  beforeUpload={() => false}
+                  beforeUpload={beforeUpload}
                   onPreview={handlePreview}
                   onChange={handleChange}
                   fileList={fileList}
+                  disabled={updateLoading}
                   style={{
                     width: '100%'
                   }}
@@ -224,11 +285,11 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
             </Col>
 
             <Col span={24}>
-              <Divider 
-                style={{ 
+              <Divider
+                style={{
                   margin: '16px 0',
                   borderColor: '#e5e7eb'
-                }} 
+                }}
               />
             </Col>
 
@@ -243,16 +304,16 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
                 valuePropName="checked"
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Switch 
-                    checkedChildren="Hiển thị" 
+                  <Switch
+                    checkedChildren="Hiển thị"
                     unCheckedChildren="Ẩn"
+                    disabled={updateLoading}
+                    onChange={(checked) => {
+                      console.log('Switch changed:', checked, 'Type:', typeof checked);
+                      form.setFieldValue('status', checked);
+                    }}
                     style={{
                       backgroundColor: '#13C2C2'
-                    }}
-                    styles={{
-                      track: {
-                        backgroundColor: '#13C2C2'
-                      }
                     }}
                   />
                   <Text type="secondary" style={{ fontSize: '13px' }}>
@@ -270,6 +331,7 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
               <Button
                 size="large"
                 onClick={onClose}
+                disabled={updateLoading}
                 style={{
                   borderRadius: '8px',
                   borderColor: '#d1d5db',
@@ -282,24 +344,18 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
               <Button
                 type="primary"
                 htmlType="submit"
-                loading={loading}
+                loading={updateLoading}
                 size="large"
                 icon={<SaveOutlined />}
                 style={{
-                  backgroundColor: loading ? '#94a3b8' : '#0D364C',
-                  borderColor: loading ? '#94a3b8' : '#0D364C',
+                  backgroundColor: updateLoading ? '#94a3b8' : '#0D364C',
+                  borderColor: updateLoading ? '#94a3b8' : '#0D364C',
                   borderRadius: '8px',
                   fontWeight: '500',
                   minWidth: '140px'
                 }}
-                styles={{
-                  '&:hover': {
-                    backgroundColor: '#1e40af !important',
-                    borderColor: '#1e40af !important'
-                  }
-                }}
               >
-                {loading ? 'Đang cập nhật...' : 'Cập nhật Category'}
+                {updateLoading ? 'Đang cập nhật...' : 'Cập nhật Category'}
               </Button>
             </Space>
           </Form.Item>
@@ -307,9 +363,9 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
       </Card>
 
       {/* Image Preview Modal */}
-      <Modal 
-        open={modalVisible} 
-        footer={null} 
+      <Modal
+        open={modalVisible}
+        footer={null}
         onCancel={() => setModalVisible(false)}
         centered
         width={500}
@@ -323,15 +379,15 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
           }
         }}
       >
-        <img 
-          alt="preview" 
-          style={{ 
-            width: '100%', 
+        <img
+          alt="preview"
+          style={{
+            width: '100%',
             borderRadius: '8px',
             maxHeight: '400px',
             objectFit: 'contain'
-          }} 
-          src={previewImage} 
+          }}
+          src={previewImage}
         />
       </Modal>
 

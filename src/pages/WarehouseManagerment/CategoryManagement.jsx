@@ -1,104 +1,60 @@
 import { useState, useEffect, useCallback } from "react";
-import { Card, Table, Button, Tag, Image, Input, Space, Typography, Avatar, Tooltip, Badge, Row, Col, Statistic } from "antd";
-import { EditOutlined,  PlusOutlined, EyeOutlined, SearchOutlined, AppstoreOutlined, CheckCircleOutlined, StopOutlined } from "@ant-design/icons";
+import { Card, Table, Button, Tag, Image, Input, Space, Typography, Avatar, Tooltip, Badge, Row, Col, Statistic, Spin } from "antd";
+import { EditOutlined, PlusOutlined, EyeOutlined, SearchOutlined, AppstoreOutlined, CheckCircleOutlined, StopOutlined } from "@ant-design/icons";
 import { debounce } from "lodash";
 import CreateCategory from "./CreateCategory";
 import UpdateCategory from "./UpdateCategory";
 import ViewCategoryDetail from "./ViewCategoryDetail";
-
+import { useDispatch, useSelector } from "react-redux";
+import { fetchCategoryRequest } from '../../redux/actions/categoryActions';
 const { Title, Text } = Typography;
 
-const sampleCategories = [
-  {
-    _id: "1",
-    name: "Điện thoại",
-    image: "https://via.placeholder.com/60x60?text=Phone",
-    status: true,
-    createdAt: "2024-06-01T10:00:00Z"
-  },
-  {
-    _id: "2",
-    name: "Laptop",
-    image: "https://via.placeholder.com/60x60?text=Laptop",
-    status: false,
-    createdAt: "2024-06-02T11:00:00Z"
-  },
-  {
-    _id: "3",
-    name: "Phụ kiện",
-    image: "https://via.placeholder.com/60x60?text=Accessory",
-    status: true,
-    createdAt: "2024-06-03T12:00:00Z"
-  },
-  {
-    _id: "4",
-    name: "Tablet",
-    image: "https://via.placeholder.com/60x60?text=Tablet",
-    status: true,
-    createdAt: "2024-06-04T13:00:00Z"
-  },
-  {
-    _id: "5",
-    name: "Smartwatch",
-    image: "https://via.placeholder.com/60x60?text=Watch",
-    status: false,
-    createdAt: "2024-06-05T14:00:00Z"
-  }
-];
-
 const CategoryManagement = () => {
-  const [categories, setCategories] = useState(sampleCategories);
   const [searchText, setSearchText] = useState("");
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
-    total: sampleCategories.length,
-  });
   const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
   const [selectedCategory, setSelectedCategory] = useState(null);
-
   const [isViewDetailModalVisible, setIsViewDetailModalVisible] = useState(false);
+
+  const dispatch = useDispatch();
+
+  // Get data from Redux store
+  const { categories, loading, error, pagination } = useSelector(state => state.category);
 
   // Custom styles
   const primaryColor = '#13C2C2';
   const secondaryColor = '#0D364C';
 
+  // Filter categories based on search text
+  const filteredCategories = categories.filter(cat =>
+    cat.name.toLowerCase().includes(searchText.toLowerCase())
+  );
+
   // Calculate statistics
-  const totalCategories = categories.length;
-  const activeCategories = categories.filter(cat => cat.status).length;
+  const totalCategories = filteredCategories.length;
+  const activeCategories = filteredCategories.filter(cat => cat.status).length;
   const inactiveCategories = totalCategories - activeCategories;
 
   // Debounce search
   const handleSearch = useCallback(
     debounce((value) => {
       setSearchText(value);
-      setPagination((prev) => ({ ...prev, current: 1 }));
     }, 500),
     []
   );
 
+  // Fetch categories on component mount
   useEffect(() => {
-    const filtered = sampleCategories.filter(cat =>
-      cat.name.toLowerCase().includes(searchText.toLowerCase())
-    );
-    setCategories(filtered);
-    setPagination(prev => ({ ...prev, total: filtered.length }));
-  }, [pagination.current, pagination.pageSize, searchText]);
+    const page = 1;
+    const limit = 3;
+    dispatch(fetchCategoryRequest({ page, limit }));
+  }, [dispatch]);
 
   const handleCreateSuccess = () => {
-    console.log("Thêm Category thành công (Giả lập)");
+    console.log("Thêm Category thành công");
     setIsCreateModalVisible(false);
-    const newCategory = { 
-      _id: (sampleCategories.length + 1).toString(), 
-      name: `New Category ${sampleCategories.length + 1}`, 
-      image: "https://via.placeholder.com/60x60?text=New", 
-      status: true, 
-      createdAt: new Date().toISOString() 
-    };
-    sampleCategories.push(newCategory);
-    setCategories([...sampleCategories]);
-    setPagination(prev => ({...prev, total: sampleCategories.length}));
+    // Refresh data after creating
+    dispatch(fetchCategoryRequest({ page: pagination.page, limit: pagination.limit }));
   };
 
   const handleOpenUpdateModal = (category) => {
@@ -107,21 +63,17 @@ const CategoryManagement = () => {
   };
 
   const handleUpdateSuccess = (id, updatedValues) => {
-    console.log(`Cập nhật Category ${id} thành công (Giả lập)`);
+    console.log(`Cập nhật Category ${id} thành công`);
     setIsUpdateModalVisible(false);
     setSelectedCategory(null);
-    const updatedCategories = categories.map(cat => 
-      cat._id === id ? { ...cat, ...updatedValues } : cat
-    );
-    setCategories(updatedCategories);
+    // Refresh data after updating
+    dispatch(fetchCategoryRequest({ page: pagination.page, limit: pagination.limit }));
   };
 
   const handleCloseUpdateModal = () => {
     setIsUpdateModalVisible(false);
     setSelectedCategory(null);
   };
-
-  
 
   const handleOpenViewDetailModal = (category) => {
     setSelectedCategory(category);
@@ -140,8 +92,8 @@ const CategoryManagement = () => {
       key: "name",
       render: (name, record) => (
         <Space>
-          <Avatar 
-            src={record.image} 
+          <Avatar
+            src={record.image}
             icon={<AppstoreOutlined />}
             style={{ backgroundColor: primaryColor }}
           />
@@ -154,12 +106,12 @@ const CategoryManagement = () => {
       dataIndex: "image",
       key: "image",
       render: (url) => (
-        <Image 
-          src={url} 
-          width={60} 
-          height={60} 
+        <Image
+          src={url}
+          width={60}
+          height={60}
           alt="category"
-          style={{ 
+          style={{
             borderRadius: '8px',
             border: `2px solid ${primaryColor}20`
           }}
@@ -171,13 +123,13 @@ const CategoryManagement = () => {
       dataIndex: "status",
       key: "status",
       render: (status) => (
-        <Badge 
-          status={status ? "success" : "error"} 
+        <Badge
+          status={status ? "success" : "error"}
           text={
-            <Tag 
-              color={status ? primaryColor : '#ff4d4f'} 
+            <Tag
+              color={status ? primaryColor : '#ff4d4f'}
               icon={status ? <CheckCircleOutlined /> : <StopOutlined />}
-              style={{ 
+              style={{
                 borderRadius: '16px',
                 fontWeight: '500'
               }}
@@ -210,11 +162,11 @@ const CategoryManagement = () => {
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="Xem chi tiết">
-            <Button 
+            <Button
               type="text"
-              icon={<EyeOutlined />} 
+              icon={<EyeOutlined />}
               onClick={() => handleOpenViewDetailModal(record)}
-              style={{ 
+              style={{
                 color: primaryColor,
                 borderColor: primaryColor
               }}
@@ -227,11 +179,11 @@ const CategoryManagement = () => {
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
-            <Button 
+            <Button
               type="text"
-              icon={<EditOutlined />} 
+              icon={<EditOutlined />}
               onClick={() => handleOpenUpdateModal(record)}
-              style={{ 
+              style={{
                 color: secondaryColor,
                 borderColor: secondaryColor
               }}
@@ -243,14 +195,50 @@ const CategoryManagement = () => {
               }}
             />
           </Tooltip>
-          
         </Space>
       ),
     },
   ];
 
+  // Show loading spinner
+  if (loading) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh'
+      }}>
+        <Spin size="large" />
+      </div>
+    );
+  }
+
+  // Show error message
+  if (error) {
+    return (
+      <div style={{
+        display: 'flex',
+        justifyContent: 'center',
+        alignItems: 'center',
+        minHeight: '100vh',
+        flexDirection: 'column'
+      }}>
+        <Text type="danger" style={{ fontSize: '18px', marginBottom: '16px' }}>
+          Có lỗi xảy ra: {error}
+        </Text>
+        <Button
+          type="primary"
+          onClick={() => dispatch(fetchCategoryRequest({ page: 1, limit: 10 }))}
+        >
+          Thử lại
+        </Button>
+      </div>
+    );
+  }
+
   return (
-    <div style={{ 
+    <div style={{
       padding: '24px',
       background: `linear-gradient(135deg, ${primaryColor}05 0%, ${secondaryColor}05 100%)`,
       minHeight: '100vh'
@@ -258,8 +246,8 @@ const CategoryManagement = () => {
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={8}>
-          <Card 
-            style={{ 
+          <Card
+            style={{
               borderRadius: '12px',
               border: `1px solid ${primaryColor}30`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -274,8 +262,8 @@ const CategoryManagement = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card 
-            style={{ 
+          <Card
+            style={{
               borderRadius: '12px',
               border: `1px solid ${primaryColor}30`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -290,8 +278,8 @@ const CategoryManagement = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card 
-            style={{ 
+          <Card
+            style={{
               borderRadius: '12px',
               border: `1px solid ${primaryColor}30`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -316,9 +304,9 @@ const CategoryManagement = () => {
         }}
         title={
           <Space>
-            <Avatar 
-              style={{ backgroundColor: primaryColor }} 
-              icon={<AppstoreOutlined />} 
+            <Avatar
+              style={{ backgroundColor: primaryColor }}
+              icon={<AppstoreOutlined />}
             />
             <Title level={3} style={{ margin: 0, color: secondaryColor }}>
               Quản lý Categories
@@ -327,10 +315,10 @@ const CategoryManagement = () => {
         }
       >
         {/* Header Actions */}
-        <div style={{ 
-          marginBottom: '24px', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <div style={{
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '16px'
@@ -338,7 +326,7 @@ const CategoryManagement = () => {
           <Input.Search
             placeholder="Tìm kiếm category..."
             onChange={(e) => handleSearch(e.target.value)}
-            style={{ 
+            style={{
               width: '320px',
               maxWidth: '100%'
             }}
@@ -347,24 +335,19 @@ const CategoryManagement = () => {
             allowClear
             onSearch={(value) => handleSearch(value)}
           />
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
+          <Button
+            type="primary"
+            icon={<PlusOutlined />}
             onClick={() => setIsCreateModalVisible(true)}
             size="large"
-            style={{ 
-              backgroundColor: primaryColor, 
+            style={{
+              backgroundColor: primaryColor,
               borderColor: primaryColor,
               borderRadius: '8px',
               fontWeight: '500',
               boxShadow: `0 4px 12px ${primaryColor}40`
             }}
-           
-            onMouseLeave={(e) => {
-              e.target.style.backgroundColor = primaryColor;
-              e.target.style.borderColor = primaryColor;
-            }}
-          > 
+          >
             Thêm Category
           </Button>
         </div>
@@ -373,11 +356,11 @@ const CategoryManagement = () => {
         <Table
           rowKey="_id"
           columns={columns}
-          dataSource={categories}
+          dataSource={filteredCategories}
           pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
+            current: pagination.page,
+            pageSize: pagination.limit,
+            total: pagination.totalCategory,
             showSizeChanger: true,
             showQuickJumper: true,
             showTotal: (total, range) => (
@@ -386,18 +369,14 @@ const CategoryManagement = () => {
               </Text>
             ),
             onChange: (page, pageSize) => {
-              setPagination((prev) => ({
-                ...prev,
-                current: page,
-                pageSize: pageSize || 10,
-              }));
+              dispatch(fetchCategoryRequest({ page, limit: pageSize || 10 }));
             },
           }}
           style={{
             borderRadius: '12px',
             overflow: 'hidden'
           }}
-          rowClassName={(record, index) => 
+          rowClassName={(record, index) =>
             index % 2 === 0 ? '' : 'ant-table-row-alternate'
           }
         />
@@ -418,8 +397,6 @@ const CategoryManagement = () => {
           onSuccess={handleUpdateSuccess}
         />
       )}
-
-    
 
       {selectedCategory && (
         <ViewCategoryDetail
