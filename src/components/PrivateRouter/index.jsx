@@ -1,15 +1,12 @@
-import { useEffect } from "react";
-import { Outlet, useNavigate } from "react-router-dom";
+import { Navigate, Outlet } from "react-router-dom";
 
 const PrivateRoute = ({ children, requiredRole }) => {
-  const navigate = useNavigate();
+  const storedRole = localStorage.getItem("role");
 
-  useEffect(() => {
-    const storedRole = localStorage.getItem("role");
-    if (!storedRole || (requiredRole && storedRole !== requiredRole)) {
-      navigate("/");
-    }
-  }, [requiredRole, navigate]);
+  if (!storedRole || (requiredRole && storedRole !== requiredRole)) {
+    return <Navigate to="/" replace />;
+  }
+
   return children ? children : <Outlet />;
 };
 

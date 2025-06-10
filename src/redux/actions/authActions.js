@@ -1,31 +1,25 @@
-// export const LOGIN_REQUEST = "LOGIN_REQUEST";
-// export const LOGIN_SUCCESS = "LOGIN_SUCCESS";
-// export const LOGIN_FAILURE = "LOGIN_FAILURE";
-// export const LOGOUT = "LOGOUT";
+// actions/authActions.js
+export const LOGIN_REQUEST = "LOGIN_REQUEST";
+export const LOGIN_SUCCESS = "LOGIN_SUCCESS";
+export const LOGIN_FAILURE = "LOGIN_FAILURE";
+export const LOGOUT = "LOGOUT";
+export const SET_USER = "SET_USER";
 
-// export const loginRequest = (credentials) => {
-//   return {
-//     type: LOGIN_REQUEST,
-//     payload: credentials,
-//   };
-// };
+export const loginRequest = (credentials) => ({
+    type: LOGIN_REQUEST,
+    payload: credentials,
+});
 
-// export const loginSuccess = (token) => {
-//   return {
-//     type: LOGIN_SUCCESS,
-//     payload: token,
-//   };
-// };
+export const loginSuccess = (data) => ({
+    type: LOGIN_SUCCESS,
+    payload: data,
+});
 
-// export const loginFailure = (error) => {
-//   return {
-//     type: LOGIN_FAILURE,
-//     payload: error,
-//   };
-// };
+export const loginFailure = (error) => ({
+    type: LOGIN_FAILURE,
+    payload: error,
+});
 
-// export const logout = () => {
-//   return {
-//     type: LOGOUT,
-//   };
-// };
+export const logout = () => ({
+    type: LOGOUT,
+});
