@@ -4,10 +4,13 @@ import createSagaMiddleware from "redux-saga";
 import authReducer from "./reducers/authReducer";
 import rootSaga from "./sagas/rootSaga";
 import categoryReducer from "./reducers/categoryReducer";
-
+import orderReducer from "./reducers/orderReducer";
+import profileReducer from "./reducers/profileReducer"; // Assuming you have a profileReducer
 const rootReducer = combineReducers({
   auth: authReducer,
   category: categoryReducer,
+  order: orderReducer,
+  profile: profileReducer,
 });
 
 const sagaMiddleware = createSagaMiddleware();

@@ -11,9 +11,26 @@ const Navbar = () => {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const [searchValue, setSearchValue] = useState("");
   const [notifications] = useState(3); // Mock notification count
+  const [userData, setUserData] = useState(null);
   const avatarBtnRef = useRef();
   const navigate = useNavigate();
   const dispatch = useDispatch();
+
+  // // Load user data from localStorage
+  // useEffect(() => {
+
+  //   console.log("storedUser", storedUser);
+  //   setUserData(storedUser);
+  //   // if (storedUser) {
+  //   //   try {
+  //   //     const parsedUser = JSON.parse(storedUser);
+  //   //     setUserData(parsedUser);
+  //   //   } catch (error) {
+  //   //     console.error('Error parsing user data:', error);
+  //   //   }
+  //   // }
+  // }, []);
+
   const debouncedToggleSidebar = useMemo(() => {
     return () => {
       setTimeout(toggleSidebar, 300);
@@ -23,7 +40,6 @@ const Navbar = () => {
   const toggleDropdown = () => {
     setIsDropdownOpen((open) => !open);
   };
-
 
   const handleHome = () => {
     navigate("/");
@@ -40,10 +56,18 @@ const Navbar = () => {
       dispatch(logout());
       localStorage.removeItem('access_token');
       localStorage.removeItem('role');
+      localStorage.removeItem('user'); // Also remove user data
       navigate('/');
     }
   };
 
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+  console.log("userData", storedUser.avatar);
+  const displayName = storedUser?.user_name || "Người dùng";
+  const displayEmail = storedUser?.email || "user@email.com";
+  const displayAvatar = storedUser?.avatar || "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face";
+  const roleName = storedUser?.role_name || "user";
+  console.log("displayName", displayName);
   return (
     <div className="w-full relative overflow-visible sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #0D364C 0%, #13C2C2 100%)' }}>
       {/* Animated background elements */}
@@ -81,10 +105,10 @@ const Navbar = () => {
 
           {/* Right Section: Enhanced User Info */}
           <div className="flex items-center space-x-4">
-            {/* User greeting with animation */}
+            {/* User greeting with animation - now shows actual user name */}
             <div className="hidden md:block">
               <span className="text-white font-medium bg-white/10 px-4 py-2 rounded-full backdrop-blur-sm border border-white/20 transition-all duration-300 hover:bg-white/20">
-                👋 Xin chào, User!
+                👋 Xin chào, {displayName}!
               </span>
             </div>
 
@@ -99,33 +123,45 @@ const Navbar = () => {
               >
                 <div className="relative">
                   <img
-                    src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face"
+                    src={displayAvatar}
                     alt="User Avatar"
                     className="w-12 h-12 rounded-full object-cover border-2 border-white/30 group-hover:border-white/60 transition-all duration-300"
+                    onError={(e) => {
+                      // Fallback if avatar fails to load
+                      e.target.src = "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face";
+                    }}
                   />
                   <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-transparent to-white/20 group-hover:to-white/40 transition-all duration-300"></div>
                 </div>
                 <ChevronDown className={`w-4 h-4 text-white transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
               </button>
 
-              {/* Dropdown Menu - không dùng portal */}
+              {/* Dropdown Menu */}
               {isDropdownOpen && (
                 <div className="absolute right-0 top-full mt-3 w-64 z-[9999]">
                   <div
                     className="backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden animate-in slide-in-from-top-2 duration-200"
                     style={{ background: 'rgba(255, 255, 255, 0.95)' }}
                   >
-                    {/* User info header */}
+                    {/* User info header - now shows actual user data */}
                     <div className="p-4 border-b border-gray-200/50" style={{ background: 'linear-gradient(135deg, #13C2C2, #0D364C)' }}>
                       <div className="flex items-center space-x-3">
                         <img
-                          src="https://images.unsplash.com/photo-1574158622682-e40e69881006?w=60&h=60&fit=crop&crop=face"
+                          src={displayAvatar}
                           alt="User Avatar"
-                          className="w-12 h-12 rounded-full border-2 border-white/50"
+                          className="w-12 h-12 rounded-full border-2 border-white/50 object-cover"
+                          onError={(e) => {
+                            e.target.src = "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=60&h=60&fit=crop&crop=face";
+                          }}
                         />
                         <div>
-                          <p className="font-semibold text-white">Người dùng</p>
-                          <p className="text-sm text-white/80">user@email.com</p>
+                          <p className="font-semibold text-white">{displayName}</p>
+                          <p className="text-sm text-white/80">{displayEmail}</p>
+                          {roleName && (
+                            <span className="inline-block mt-1 px-2 py-1 text-xs bg-white/20 text-white rounded-full">
+                              {roleName.charAt(0).toUpperCase() + roleName.slice(1)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     </div>
@@ -133,7 +169,7 @@ const Navbar = () => {
                     {/* Menu items */}
                     <div className="py-2">
                       <button
-                        onClick={() => navigate("/admin/profile")}
+                        onClick={() => { navigate("/admin/profile"); toggleDropdown(); }}
                         className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
                       >
                         <User className="w-5 h-5" style={{ color: '#13C2C2' }} />
@@ -141,7 +177,7 @@ const Navbar = () => {
                       </button>
 
                       <button
-                        onClick={() => navigate("/admin/change-password")}
+                        onClick={() => { navigate("/admin/change-password"); toggleDropdown(); }}
                         className="w-full flex items-center space-x-3 px-4 py-3 text-gray-700 hover:bg-gray-50 transition-all duration-200 hover:translate-x-1"
                       >
                         <Settings className="w-5 h-5" style={{ color: '#13C2C2' }} />
