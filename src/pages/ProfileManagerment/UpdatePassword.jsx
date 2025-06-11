@@ -1,23 +1,24 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useDispatch, useSelector } from "react-redux";
 import { Card, Input, Button, message, Form, Typography, Space, Divider } from "antd";
 import { LockOutlined, KeyOutlined, SafetyOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { changePasswordRequest, clearChangePasswordState } from "../../redux/actions/profileActions";
 
 const { Title, Text } = Typography;
 
 // Motion component simulation (since framer-motion isn't available)
 const Motion = ({ children, className, delay = 0, ...props }) => {
   const [isVisible, setIsVisible] = useState(false);
-  
+
   useState(() => {
     const timer = setTimeout(() => setIsVisible(true), delay * 100);
     return () => clearTimeout(timer);
   }, [delay]);
 
   return (
-    <div 
-      className={`${className || ''} transition-all duration-500 ${
-        isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
-      }`} 
+    <div
+      className={`${className || ''} transition-all duration-500 ${isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
+        }`}
       {...props}
     >
       {children}
@@ -26,20 +27,59 @@ const Motion = ({ children, className, delay = 0, ...props }) => {
 };
 
 export default function UpdatePassword() {
+  const dispatch = useDispatch();
+  const {
+    changePasswordLoading,
+    changePasswordError,
+    changePasswordSuccess
+  } = useSelector(state => state.profile);
+
   const [formData, setFormData] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Handle success/error messages
+  useEffect(() => {
+    if (changePasswordSuccess) {
+      message.success({
+        content: "Đổi mật khẩu thành công!",
+        icon: <CheckCircleOutlined style={{ color: '#13C2C2' }} />,
+      });
+      // Reset form
+      setFormData({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+      // Clear state after showing message
+      setTimeout(() => {
+        dispatch(clearChangePasswordState());
+      }, 1000);
+    }
+  }, [changePasswordSuccess, dispatch]);
+
+  useEffect(() => {
+    if (changePasswordError) {
+      message.error({
+        content: changePasswordError,
+        duration: 4,
+      });
+      // Clear error state after showing message
+      setTimeout(() => {
+        dispatch(clearChangePasswordState());
+      }, 1000);
+    }
+  }, [changePasswordError, dispatch]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
       ...prev,
       [field]: value
     }));
-    
+
     // Clear error when user types
     if (errors[field]) {
       setErrors(prev => ({
@@ -51,44 +91,43 @@ export default function UpdatePassword() {
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.oldPassword) {
       newErrors.oldPassword = 'Vui lòng nhập mật khẩu hiện tại!';
     }
-    
+
     if (!formData.newPassword) {
       newErrors.newPassword = 'Vui lòng nhập mật khẩu mới!';
     } else if (formData.newPassword.length < 6) {
       newErrors.newPassword = 'Mật khẩu phải có ít nhất 6 ký tự!';
     }
-    
+
     if (!formData.confirmPassword) {
       newErrors.confirmPassword = 'Vui lòng xác nhận mật khẩu mới!';
     } else if (formData.newPassword !== formData.confirmPassword) {
       newErrors.confirmPassword = 'Mật khẩu xác nhận không khớp!';
     }
-    
+
+    // Additional password strength validation
+    if (formData.newPassword && formData.newPassword.length >= 6) {
+      const hasUpperCase = /[A-Z]/.test(formData.newPassword);
+      const hasLowerCase = /[a-z]/.test(formData.newPassword);
+      const hasNumbers = /\d/.test(formData.newPassword);
+
+      if (!hasUpperCase || !hasLowerCase || !hasNumbers) {
+        newErrors.newPassword = 'Mật khẩu phải chứa ít nhất một chữ hoa, một chữ thường và một số!';
+      }
+    }
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async () => {
     if (!validateForm()) return;
-    
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      message.success({
-        content: "Đổi mật khẩu thành công!",
-        icon: <CheckCircleOutlined style={{ color: '#13C2C2' }} />,
-      });
-      setFormData({
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-    }, 1200);
+
+    // Dispatch Redux action
+    dispatch(changePasswordRequest(formData.oldPassword, formData.newPassword));
   };
 
   const customStyles = `
@@ -458,11 +497,11 @@ export default function UpdatePassword() {
                     className="modern-button mt-2"
                     type="primary"
                     htmlType="submit"
-                    loading={loading}
+                    loading={changePasswordLoading}
                     icon={<SafetyOutlined />}
-                    disabled={loading}
+                    disabled={changePasswordLoading}
                   >
-                    Đổi mật khẩu
+                    {changePasswordLoading ? 'Đang xử lý...' : 'Đổi mật khẩu'}
                   </Button>
                 </form>
               </Card>

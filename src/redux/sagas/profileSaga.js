@@ -8,6 +8,9 @@ import {
     UPDATE_USER_REQUEST,
     updateUserSuccess,
     updateUserFailure,
+    CHANGE_PASSWORD_REQUEST,
+    changePasswordSuccess,
+    changePasswordFailure,
 } from "../actions/profileActions";
 
 const API_BASE_URL = "https://youtube-fullstack-nodejs-forbeginer.onrender.com/api";
@@ -55,6 +58,26 @@ const updateUser = async ({ userId, user_name, avatar }) => {
     return response.data;
 };
 
+// API function for changing password
+const changePassword = async ({ oldPassword, newPassword }) => {
+    const token = localStorage.getItem('token');
+    const response = await axios.put(
+        `${API_BASE_URL}/user/change-password`,
+        {
+            old_password: oldPassword,
+            new_password: newPassword,
+        },
+        {
+            headers: {
+                'accept': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        }
+    );
+    return response.data;
+};
+
 function* handleFetchUser(action) {
     try {
         const { userId } = action.payload;
@@ -82,7 +105,23 @@ function* handleUpdateUser(action) {
     }
 }
 
+function* handleChangePassword(action) {
+    try {
+        const { oldPassword, newPassword } = action.payload;
+        console.log("Changing password...");
+        const data = yield call(changePassword, {
+            oldPassword,
+            newPassword
+        });
+        yield put(changePasswordSuccess(data));
+    } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message;
+        yield put(changePasswordFailure(errorMessage));
+    }
+}
+
 export default function* userSaga() {
     yield takeLatest(FETCH_USER_REQUEST, handleFetchUser);
     yield takeLatest(UPDATE_USER_REQUEST, handleUpdateUser);
+    yield takeLatest(CHANGE_PASSWORD_REQUEST, handleChangePassword);
 }
