@@ -1,8 +1,8 @@
-import { useState } from "react";
-import { Form, Input, Button, Card, Switch, Upload, Modal, InputNumber, Select, Typography, Space, Divider } from "antd";
-import { 
-  PlusOutlined, 
-  CameraOutlined, 
+import { useState, useEffect } from "react";
+import { Form, Input, Button, Card, Switch, Upload, Modal, InputNumber, Select, Typography, Space, Divider, message } from "antd";
+import {
+  PlusOutlined,
+  CameraOutlined,
   AppstoreOutlined,
   ShoppingOutlined,
   DollarOutlined,
@@ -10,36 +10,115 @@ import {
   UserOutlined,
   InfoCircleOutlined
 } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { createProductRequest } from "../../redux/actions/productActions";
+import { fetchCategoryRequest } from "../../redux/actions/categoryActions";
 import PropTypes from "prop-types";
 
 const { Title, Text } = Typography;
 
-// Sample categories data
-const sampleCategories = [
-  { _id: "c1", name: "Điện thoại" },
-  { _id: "c2", name: "Laptop" },
-  { _id: "c3", name: "Phụ kiện" },
-];
-
 const CreateProduct = ({ visible, onClose, onSuccess }) => {
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [switchValue, setSwitchValue] = useState(true);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleFinish = (values) => {
-    setLoading(true);
-    console.log('Creating product:', values);
-    setTimeout(() => {
-      setLoading(false);
-      onSuccess && onSuccess(values);
+  const dispatch = useDispatch();
+  const { createLoading = false } = useSelector(state => state.product || {});
+  const { categories = [], loading: categoryLoading } = useSelector(state => state.category || {});
+
+  // Fetch categories when modal opens
+  useEffect(() => {
+    if (visible) {
+      dispatch(fetchCategoryRequest({ page: 1, limit: 100 }));
+    }
+  }, [visible, dispatch]);
+
+  // Reset form when modal closes
+  useEffect(() => {
+    if (!visible) {
       form.resetFields();
       setFileList([]);
       setSwitchValue(true);
-      onClose && onClose();
-    }, 1000);
+      setPreviewImage("");
+      setModalVisible(false);
+      setIsSubmitting(false);
+    } else {
+      // Khi mở modal, đảm bảo form có giá trị mặc định đúng
+      form.setFieldsValue({ status: true });
+      setSwitchValue(true);
+    }
+  }, [visible, form]);
+
+  // Filter active categories
+  const activeCategories = categories.filter(cat => cat.status);
+
+  const handleFinish = async (values) => {
+    // Prevent double submission
+    if (isSubmitting || createLoading) {
+      return;
+    }
+
+    try {
+      setIsSubmitting(true);
+
+      // Create FormData for file upload
+      const formData = new FormData();
+
+      // Add image if exists
+      if (fileList[0]?.originFileObj) {
+        formData.append('image', fileList[0].originFileObj);
+      }
+
+      // Add all form values
+      Object.keys(values).forEach(key => {
+        if (key !== 'image') {
+          // Convert status boolean to string để API hiểu đúng
+          if (key === 'status') {
+            formData.append(key, values[key].toString());
+          } else {
+            formData.append(key, values[key]);
+          }
+        }
+      });
+
+      // Add default value for sold
+      formData.append('sold', '0');
+
+      // Add token check
+      const token = localStorage.getItem('token');
+      if (!token) {
+        message.error('Vui lòng đăng nhập để thực hiện chức năng này!');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Log form data for debugging
+      console.log('Form values:', values);
+      console.log('Status value being sent:', values.status);
+      console.log('FormData entries:');
+      for (let pair of formData.entries()) {
+        console.log(pair[0] + ': ' + pair[1]);
+      }
+
+      // Dispatch create action with success callback
+      dispatch(createProductRequest(formData, () => {
+        message.success('Thêm sản phẩm thành công!');
+        form.resetFields();
+        setFileList([]);
+        setSwitchValue(true);
+        setIsSubmitting(false);
+        onSuccess && onSuccess();
+        onClose && onClose();
+      }));
+
+    } catch (error) {
+      message.error('Có lỗi xảy ra khi tạo sản phẩm!');
+      console.error('Error creating product:', error);
+      setIsSubmitting(false);
+    }
   };
 
   const handlePreview = async (file) => {
@@ -54,6 +133,8 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
 
   const handleSwitchChange = (checked) => {
     setSwitchValue(checked);
+    // FIX: Cập nhật giá trị boolean trong form thay vì string
+    form.setFieldsValue({ status: checked });
   };
 
   const getBase64 = (file) =>
@@ -111,6 +192,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
         footer={null}
         destroyOnClose
         width={600}
+        confirmLoading={createLoading || isSubmitting}
         styles={{
           body: { padding: '0' },
           header: { display: 'none' }
@@ -121,10 +203,10 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
             <Space direction="vertical" size="large" style={{ width: '100%' }}>
               {/* Header */}
               <div style={{ textAlign: 'center' }}>
-                <div style={{ 
-                  width: '60px', 
-                  height: '60px', 
-                  backgroundColor: '#13C2C2', 
+                <div style={{
+                  width: '60px',
+                  height: '60px',
+                  backgroundColor: '#13C2C2',
                   borderRadius: '50%',
                   display: 'flex',
                   alignItems: 'center',
@@ -161,11 +243,17 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   name="category_id"
                   rules={[{ required: true, message: "Vui lòng chọn danh mục!" }]}
                 >
-                  <Select 
+                  <Select
                     placeholder="Chọn danh mục sản phẩm"
                     style={customStyles.input}
+                    loading={categoryLoading}
+                    notFoundContent={
+                      <div style={{ padding: '12px', textAlign: 'center' }}>
+                        {categoryLoading ? 'Đang tải danh mục...' : 'Không tìm thấy danh mục nào'}
+                      </div>
+                    }
                   >
-                    {sampleCategories.map(cat => (
+                    {activeCategories.map(cat => (
                       <Select.Option key={cat._id} value={cat._id}>
                         {cat.name}
                       </Select.Option>
@@ -183,8 +271,8 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   name="name"
                   rules={[{ required: true, message: "Vui lòng nhập tên sản phẩm!" }]}
                 >
-                  <Input 
-                    placeholder="Nhập tên sản phẩm" 
+                  <Input
+                    placeholder="Nhập tên sản phẩm"
                     style={customStyles.input}
                   />
                 </Form.Item>
@@ -241,8 +329,8 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   name="short_desc"
                   rules={[{ required: true, message: "Vui lòng nhập mô tả ngắn!" }]}
                 >
-                  <Input.TextArea 
-                    rows={2} 
+                  <Input.TextArea
+                    rows={2}
                     placeholder="Nhập mô tả ngắn"
                     style={{ borderRadius: '8px' }}
                   />
@@ -258,8 +346,8 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   name="detail_desc"
                   rules={[{ required: true, message: "Vui lòng nhập mô tả chi tiết!" }]}
                 >
-                  <Input.TextArea 
-                    rows={4} 
+                  <Input.TextArea
+                    rows={4}
                     placeholder="Nhập mô tả chi tiết"
                     style={{ borderRadius: '8px' }}
                   />
@@ -275,7 +363,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   name="factory"
                   rules={[{ required: true, message: "Vui lòng nhập nhà sản xuất!" }]}
                 >
-                  <Input 
+                  <Input
                     placeholder="Nhập nhà sản xuất"
                     style={customStyles.input}
                   />
@@ -291,14 +379,14 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   name="target"
                   rules={[{ required: true, message: "Vui lòng nhập đối tượng!" }]}
                 >
-                  <Input 
+                  <Input
                     placeholder="Nhập đối tượng sử dụng"
                     style={customStyles.input}
                   />
                 </Form.Item>
 
-                <Form.Item 
-                  label={<span style={customStyles.label}>Hình ảnh sản phẩm</span>} 
+                <Form.Item
+                  label={<span style={customStyles.label}>Hình ảnh sản phẩm</span>}
                   name="image"
                 >
                   <Upload
@@ -315,16 +403,16 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                           color: '#13C2C2',
                           fontSize: '24px'
                         }} />
-                        <div style={{ 
-                          marginTop: 8, 
-                          color: '#13C2C2', 
+                        <div style={{
+                          marginTop: 8,
+                          color: '#13C2C2',
                           fontWeight: '500',
                           fontSize: '14px'
                         }}>
                           Tải ảnh lên
                         </div>
-                        <div style={{ 
-                          color: '#999', 
+                        <div style={{
+                          color: '#999',
                           fontSize: '12px',
                           marginTop: '4px'
                         }}>
@@ -341,14 +429,11 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   valuePropName="checked"
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Switch 
-                      checkedChildren="Hiển thị" 
+                    <Switch
+                      checked={switchValue}
+                      checkedChildren="Hiển thị"
                       unCheckedChildren="Ẩn"
                       onChange={handleSwitchChange}
-                      defaultChecked={true}
-                      style={{
-                        backgroundColor: switchValue ? '#13C2C2' : undefined
-                      }}
                     />
                     <Text style={{ color: '#666', fontSize: '14px' }}>
                       {switchValue ? 'Sản phẩm sẽ được hiển thị công khai' : 'Sản phẩm sẽ được ẩn'}
@@ -361,9 +446,10 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                 {/* Actions */}
                 <Form.Item style={{ marginBottom: 0 }}>
                   <Space style={{ width: '100%', justifyContent: 'space-between' }}>
-                    <Button 
+                    <Button
                       onClick={onClose}
                       size="large"
+                      disabled={isSubmitting || createLoading}
                       style={{
                         height: '44px',
                         borderRadius: '8px',
@@ -378,15 +464,16 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     <Button
                       type="primary"
                       htmlType="submit"
-                      loading={loading}
+                      loading={createLoading || isSubmitting}
                       icon={<PlusOutlined />}
                       size="large"
+                      disabled={isSubmitting || createLoading}
                       style={{
                         ...customStyles.primaryButton,
                         minWidth: '140px',
                       }}
                     >
-                      Tạo Sản phẩm
+                      {(createLoading || isSubmitting) ? 'Đang tạo...' : 'Tạo Sản phẩm'}
                     </Button>
                   </Space>
                 </Form.Item>
@@ -403,15 +490,15 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
         onCancel={() => setModalVisible(false)}
         width={400}
       >
-        <img 
-          alt="preview" 
-          style={{ 
-            width: "100%", 
+        <img
+          alt="preview"
+          style={{
+            width: "100%",
             borderRadius: '8px',
             maxHeight: '400px',
             objectFit: 'contain'
-          }} 
-          src={previewImage} 
+          }}
+          src={previewImage}
         />
       </Modal>
 
@@ -426,8 +513,23 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
           border-color: #0D364C !important;
         }
         
+        /* Switch màu xanh khi bật (hiển thị) */
         .ant-switch-checked {
-          background-color: #13C2C2 !important;
+          background-color: #52c41a !important;
+        }
+        
+        /* Switch màu đỏ khi tắt (ẩn) */
+        .ant-switch:not(.ant-switch-checked) {
+          background-color: #ff4d4f !important;
+        }
+        
+        /* Hover effects cho switch */
+        .ant-switch-checked:hover:not(.ant-switch-disabled) {
+          background-color: #73d13d !important;
+        }
+        
+        .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
+          background-color: #ff7875 !important;
         }
         
         .ant-input:focus,
@@ -473,4 +575,4 @@ CreateProduct.propTypes = {
   onSuccess: PropTypes.func
 };
 
-export default CreateProduct; 
+export default CreateProduct;

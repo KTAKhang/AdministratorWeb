@@ -1,5 +1,7 @@
-import { Modal, Button, Tag, Typography, Card, Space, Divider, Avatar } from "antd";
-import { 
+import { useEffect, useState } from "react";
+import { useDispatch, useSelector } from "react-redux";
+import { Modal, Button, Tag, Typography, Card, Space, Divider, Avatar, Spin, Alert, Row, Col } from "antd";
+import {
   EyeOutlined,
   UserOutlined,
   MailOutlined,
@@ -8,13 +10,27 @@ import {
   TagOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  TeamOutlined
+  TeamOutlined,
+  ReloadOutlined
 } from "@ant-design/icons";
 import PropTypes from "prop-types";
+import {
+  getUserByIdRequest,
+  clearUserDetail
+} from "../../redux/actions/userActions";
 
 const { Title, Text } = Typography;
 
 const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
+  const dispatch = useDispatch();
+
+  // Redux state
+  const {
+    userDetail,
+    detailLoading,
+    detailError
+  } = useSelector(state => state.user);
+
   const formatDate = (dateString) => {
     return new Date(dateString).toLocaleString('vi-VN', {
       year: 'numeric',
@@ -24,6 +40,25 @@ const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
       minute: '2-digit'
     });
   };
+
+  // Load detail ngay khi modal mở để đảm bảo có email
+  useEffect(() => {
+    if (visible && customerData?._id) {
+      // Luôn fetch detail để có đầy đủ thông tin bao gồm email
+      dispatch(getUserByIdRequest(customerData._id));
+    } else if (!visible) {
+      dispatch(clearUserDetail());
+    }
+  }, [visible, customerData, dispatch]);
+
+  const handleRefresh = () => {
+    if (customerData?._id) {
+      dispatch(getUserByIdRequest(customerData._id));
+    }
+  };
+
+  // Chỉ hiển thị userDetail để đảm bảo có đầy đủ thông tin email
+  const displayData = userDetail;
 
   const StatusTag = ({ status }) => (
     <Tag
@@ -47,9 +82,9 @@ const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
     <Modal
       open={visible}
       title={
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 8,
           color: '#0D364C'
         }}>
@@ -61,18 +96,32 @@ const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
       }
       onCancel={onClose}
       footer={
-        <Button
-          size="large"
-          onClick={onClose}
-          icon={<CloseOutlined />}
-          style={{
-            borderRadius: '8px',
-            borderColor: '#d1d5db',
-            color: '#6b7280'
-          }}
-        >
-          Đóng
-        </Button>
+        <Space>
+          <Button
+            icon={<ReloadOutlined />}
+            onClick={handleRefresh}
+            loading={detailLoading}
+            style={{
+              borderRadius: '8px',
+              borderColor: '#13C2C2',
+              color: '#13C2C2'
+            }}
+          >
+            Làm mới
+          </Button>
+          <Button
+            size="large"
+            onClick={onClose}
+            icon={<CloseOutlined />}
+            style={{
+              borderRadius: '8px',
+              borderColor: '#d1d5db',
+              color: '#6b7280'
+            }}
+          >
+            Đóng
+          </Button>
+        </Space>
       }
       width={700}
       centered
@@ -91,7 +140,73 @@ const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
         }
       }}
     >
-      {customerData ? (
+      {/* Hiển thị loading khi đang fetch detail */}
+      {detailLoading && (
+        <Card
+          bordered={false}
+          style={{
+            boxShadow: 'none',
+            background: 'transparent'
+          }}
+        >
+          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+            {/* Header with Avatar - hiển thị từ customerData */}
+            <div style={{
+              textAlign: 'center',
+              marginBottom: '24px'
+            }}>
+              <Avatar
+                size={120}
+                src={customerData?.avatar}
+                icon={<UserOutlined />}
+                style={{
+                  backgroundColor: '#13C2C2',
+                  border: '3px solid #13C2C2',
+                  marginBottom: '16px'
+                }}
+                onError={() => false}
+              />
+              <Title level={3} style={{
+                margin: '8px 0',
+                color: '#0D364C'
+              }}>
+                {customerData?.user_name || 'Đang tải...'}
+              </Title>
+              <Space size="small">
+                <StatusTag status={customerData?.status} />
+                <Tag color="#13C2C2" icon={<TeamOutlined />} style={{ borderRadius: '16px', padding: '4px 12px' }}>
+                  {customerData?.role_name || 'Khách hàng'}
+                </Tag>
+              </Space>
+            </div>
+
+            <Divider style={{ margin: '0 0 24px 0' }} />
+
+            {/* Loading spinner cho phần detail */}
+            <div style={{ textAlign: 'center', padding: '20px 0' }}>
+              <Spin size="large" tip="Đang tải thông tin chi tiết..." />
+            </div>
+          </Space>
+        </Card>
+      )}
+
+      {detailError && (
+        <Alert
+          message="Lỗi tải dữ liệu"
+          description={detailError}
+          type="error"
+          closable
+          style={{ marginBottom: '16px' }}
+          action={
+            <Button size="small" danger onClick={handleRefresh}>
+              Thử lại
+            </Button>
+          }
+        />
+      )}
+
+      {/* Chỉ hiển thị content khi có userDetail đầy đủ */}
+      {!detailLoading && displayData && (
         <Card
           bordered={false}
           style={{
@@ -101,30 +216,31 @@ const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
         >
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             {/* Header with Avatar */}
-            <div style={{ 
+            <div style={{
               textAlign: 'center',
               marginBottom: '24px'
             }}>
-              <Avatar 
-                size={120} 
-                src={customerData.avatar}
-                icon={!customerData.avatar && <UserOutlined />}
-                style={{ 
-                  backgroundColor: !customerData.avatar ? '#13C2C2' : undefined,
+              <Avatar
+                size={120}
+                src={displayData.avatar}
+                icon={<UserOutlined />}
+                style={{
+                  backgroundColor: '#13C2C2',
                   border: '3px solid #13C2C2',
                   marginBottom: '16px'
                 }}
+                onError={() => false}
               />
-              <Title level={3} style={{ 
+              <Title level={3} style={{
                 margin: '8px 0',
                 color: '#0D364C'
               }}>
-                {customerData.user_name}
+                {displayData.user_name}
               </Title>
               <Space size="small">
-                <StatusTag status={customerData.status} />
+                <StatusTag status={displayData.status} />
                 <Tag color="#13C2C2" icon={<TeamOutlined />} style={{ borderRadius: '16px', padding: '4px 12px' }}>
-                  {customerData.role_id === 'r1' ? 'Khách hàng' : 'VIP'}
+                  {displayData.role_name || 'Khách hàng'}
                 </Tag>
               </Space>
             </div>
@@ -136,64 +252,84 @@ const ViewCustomerDetail = ({ visible, customerData, onClose }) => {
               <div className="info-item">
                 <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
                   <TagOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  ID Khách hàng
+                  ID Khách hàng:
                 </Text>
-                <Tag color="#0D364C" style={{ 
-                  fontFamily: 'monospace',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  marginTop: '8px'
-                }}>
-                  {customerData._id}
-                </Tag>
+                <Text style={{ marginLeft: '8px', fontSize: '14px' }}>
+                  {displayData._id}
+                </Text>
               </div>
 
               <div className="info-item">
                 <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
                   <MailOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  Email
+                  Email:
                 </Text>
-                <Text style={{ 
-                  display: 'block',
-                  color: '#0D364C',
-                  marginTop: '8px'
-                }}>
-                  {customerData.email}
+                <Text style={{ marginLeft: '8px', fontSize: '14px' }}>
+                  {displayData.email || 'Chưa có thông tin email'}
                 </Text>
               </div>
 
               <div className="info-item">
                 <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                  <CalendarOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  Thời gian tạo
+                  <TeamOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                  Vai trò:
                 </Text>
-                <Text style={{ 
-                  display: 'block',
-                  color: '#0D364C',
-                  marginTop: '8px'
-                }}>
-                  {formatDate(customerData.createdAt)}
+                <Text style={{ marginLeft: '8px', fontSize: '14px' }}>
+                  {displayData.role_name || 'Khách hàng'}
                 </Text>
               </div>
+
+              {displayData.createdAt && (
+                <div className="info-item">
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <CalendarOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Ngày tạo tài khoản:
+                  </Text>
+                  <Text style={{ marginLeft: '8px', fontSize: '14px' }}>
+                    {formatDate(displayData.createdAt)}
+                  </Text>
+                </div>
+              )}
+
+              {displayData.updatedAt && (
+                <div className="info-item">
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <CalendarOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Cập nhật lần cuối:
+                  </Text>
+                  <Text style={{ marginLeft: '8px', fontSize: '14px' }}>
+                    {formatDate(displayData.updatedAt)}
+                  </Text>
+                </div>
+              )}
             </Space>
           </Space>
         </Card>
-      ) : (
-        <div style={{ 
-          textAlign: 'center',
-          padding: '40px 0'
-        }}>
-          <Text type="secondary">Đang tải thông tin khách hàng...</Text>
+      )}
+
+      {/* Fallback khi không có data và không loading */}
+      {!detailLoading && !displayData && !detailError && (
+        <div style={{ textAlign: 'center', padding: '40px 0' }}>
+          <Text type="secondary">Không thể tải thông tin chi tiết</Text>
         </div>
       )}
 
       <style>
         {`
           .info-item {
-            padding: 16px;
+            padding: 12px;
             background: #f8fafc;
             border-radius: 8px;
-            border: 1px solid #e5e7eb;
+            border-left: 3px solid #13C2C2;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+          }
+          
+          .info-item:hover {
+            background: #e0f7fa;
+            transition: background-color 0.3s ease;
           }
         `}
       </style>

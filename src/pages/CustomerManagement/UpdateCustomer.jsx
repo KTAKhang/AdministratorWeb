@@ -1,20 +1,22 @@
 import { useState, useEffect } from "react";
-import { 
-  Form, 
-  Input, 
-  Button, 
-  Card, 
-  Switch, 
-  Upload, 
-  Modal, 
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Form,
+  Input,
+  Button,
+  Card,
+  Switch,
+  Upload,
+  Modal,
   Select,
   Space,
   Typography,
   Divider,
   message,
-  Avatar
+  Avatar,
+  Spin
 } from "antd";
-import { 
+import {
   EditOutlined,
   SaveOutlined,
   CloseOutlined,
@@ -24,60 +26,139 @@ import {
   UploadOutlined
 } from "@ant-design/icons";
 import PropTypes from "prop-types";
+import {
+  updateUserRequest,
+  getUserByIdRequest,
+  clearUserDetail
+} from "../../redux/actions/userActions";
 
 const { Title, Text } = Typography;
 
-// Sample roles data
+// Sample roles data theo API thực tế
 const sampleRoles = [
-  { id: 'r1', name: 'Khách hàng' },
-  { id: 'r2', name: 'VIP' },
+  { id: 'customer', name: 'Khách hàng' },
+  { id: 'admin', name: 'Admin' }
 ];
 
 const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
+  const dispatch = useDispatch();
+
+  // Redux state
+  const {
+    updateLoading,
+    updateError,
+    userDetail,
+    detailLoading,
+    detailError
+  } = useSelector(state => state.user);
+
   const [form] = Form.useForm();
-  const [loading, setLoading] = useState(false);
   const [previewImage, setPreviewImage] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
+  const [avatarError, setAvatarError] = useState(false);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
+  const [statusValue, setStatusValue] = useState(true);
 
+  // Fetch user detail khi modal mở
   useEffect(() => {
-    if (visible && customerData) {
-      form.setFieldsValue({
-        user_name: customerData.user_name,
-        email: customerData.email,
-        role_id: customerData.role_id,
-        status: customerData.status,
-      });
-      if (customerData.avatar) {
+    if (visible && customerData?._id) {
+      dispatch(getUserByIdRequest(customerData._id));
+    } else if (!visible) {
+      dispatch(clearUserDetail());
+    }
+  }, [visible, customerData, dispatch]);
+
+  // Set form values khi có userDetail
+  useEffect(() => {
+    if (visible && userDetail) {
+      console.log('🔍 userDetail received:', userDetail); // Debug log
+
+      // Set form values với đầy đủ thông tin từ userDetail
+      const currentStatus = userDetail.status !== undefined ? userDetail.status : true;
+
+      const formValues = {
+        user_name: userDetail.user_name || '',
+        email: userDetail.email || '', // Bây giờ sẽ có email từ API detail
+        password: '', // Password để trống để user nhập mới
+        role: userDetail.role_name || 'customer',
+        status: currentStatus,
+      };
+
+      console.log('🔍 Setting form values:', formValues); // Debug log
+      console.log('🔍 Original status from API:', userDetail.status, 'Type:', typeof userDetail.status); // Debug log
+
+      form.setFieldsValue(formValues);
+      setStatusValue(currentStatus);
+
+      if (userDetail.avatar) {
         setFileList([
           {
             uid: '-1',
             name: 'avatar.png',
             status: 'done',
-            url: customerData.avatar,
+            url: userDetail.avatar,
           },
         ]);
+        setAvatarError(false);
       } else {
         setFileList([]);
+        setAvatarError(false);
       }
     } else if (!visible) {
       form.resetFields();
       setFileList([]);
       setPreviewImage("");
       setModalVisible(false);
+      setAvatarError(false);
+      setHasSubmitted(false);
+      setStatusValue(true);
     }
-  }, [visible, customerData, form]);
+  }, [visible, userDetail, form]);
 
   const handleFinish = (values) => {
-    setLoading(true);
-    console.log('Updating customer:', values);
-    setTimeout(() => {
-      setLoading(false);
-      message.success('Cập nhật thông tin khách hàng thành công!');
-      onSuccess && onSuccess(customerData._id, values);
-      onClose && onClose();
-    }, 1000);
+    console.log('🔍 Form values submitted:', values); // Debug log
+
+    const updateData = { ...values };
+
+    // Xử lý status như UpdateCategory - đảm bảo boolean value
+    updateData.status = Boolean(values.status);
+    console.log(`🔍 Status processing: ${values.status} -> ${updateData.status} (type: ${typeof updateData.status})`); // Debug log
+
+    // Handle avatar file
+    if (fileList.length > 0 && fileList[0].originFileObj) {
+      updateData.avatar = fileList[0].originFileObj;
+    }
+
+    console.log('🔍 Final updateData:', updateData); // Debug log
+
+    // Set submitted flag
+    setHasSubmitted(true);
+
+    // Dispatch update action
+    dispatch(updateUserRequest(customerData._id, updateData));
   };
+
+  // Handle update success với debounce để tránh multiple calls
+  useEffect(() => {
+    // Chỉ trigger success callback khi thực sự cần thiết
+    if (hasSubmitted && !updateLoading && !updateError && visible) {
+      // Reset form và đóng modal
+      const timer = setTimeout(() => {
+        setHasSubmitted(false);
+        if (onSuccess) {
+          onSuccess(customerData._id, {});
+        }
+      }, 50); // Giảm delay xuống 50ms
+
+      return () => clearTimeout(timer);
+    }
+
+    // Reset hasSubmitted nếu có lỗi
+    if (hasSubmitted && updateError) {
+      setHasSubmitted(false);
+    }
+  }, [hasSubmitted, updateLoading, updateError, visible, customerData, onSuccess]);
 
   const handlePreview = async (file) => {
     if (!file.url && !file.preview) {
@@ -106,9 +187,9 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
     <Modal
       open={visible}
       title={
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 8,
           color: '#0D364C'
         }}>
@@ -145,189 +226,239 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
           background: 'transparent'
         }}
       >
-        <Form
-          form={form}
-          layout="vertical"
-          onFinish={handleFinish}
-          size="large"
-        >
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
-            {/* Header with Avatar */}
-            <div style={{ textAlign: 'center' }}>
-              <Avatar 
-                size={120}
-                src={customerData?.avatar}
-                icon={!customerData?.avatar && <UserOutlined />}
-                style={{ 
-                  backgroundColor: !customerData?.avatar ? '#13C2C2' : undefined,
-                  border: '3px solid #13C2C2',
-                  marginBottom: '16px'
-                }}
-              />
-              <Title level={4} style={{ 
-                color: '#0D364C',
-                margin: '0 0 8px 0'
-              }}>
-                {customerData?.user_name}
-              </Title>
-              <Text type="secondary">
-                Cập nhật thông tin khách hàng
-              </Text>
-            </div>
-
-            <Divider style={{ borderColor: '#13C2C2', opacity: 0.3 }} />
-
-            <Form.Item
-              label={
-                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                  <UserOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  Tên người dùng
-                </Text>
-              }
-              name="user_name"
-              rules={[{ required: true, message: "Vui lòng nhập tên người dùng!" }]}
-            >
-              <Input 
-                placeholder="Nhập tên người dùng"
-                style={{ borderRadius: '8px' }}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label={
-                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                  <MailOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  Email
-                </Text>
-              }
-              name="email"
-              rules={[
-                { required: true, message: "Vui lòng nhập email!" },
-                { type: 'email', message: "Email không hợp lệ!" }
-              ]}
-            >
-              <Input 
-                placeholder="Nhập email"
-                style={{ borderRadius: '8px' }}
-              />
-            </Form.Item>
-
-            <Form.Item
-              label={
-                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                  <TeamOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  Vai trò
-                </Text>
-              }
-              name="role_id"
-              rules={[{ required: true, message: "Vui lòng chọn vai trò!" }]}
-            >
-              <Select 
-                placeholder="Chọn vai trò"
-                style={{ borderRadius: '8px' }}
-              >
-                {sampleRoles.map(role => (
-                  <Select.Option key={role.id} value={role.id}>
-                    {role.name}
-                  </Select.Option>
-                ))}
-              </Select>
-            </Form.Item>
-
-            <Form.Item
-              label={
-                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                  <UploadOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                  Avatar
-                </Text>
-              }
-              name="avatar"
-            >
-              <Upload
-                listType="picture-card"
-                maxCount={1}
-                beforeUpload={() => false}
-                onPreview={handlePreview}
-                onChange={handleChange}
-                fileList={fileList}
-                className="avatar-upload"
-              >
-                {fileList.length < 1 && (
-                  <div style={{ color: '#13C2C2' }}>
-                    <UploadOutlined />
-                    <div style={{ marginTop: 8, fontSize: '12px' }}>Tải ảnh lên</div>
-                  </div>
-                )}
-              </Upload>
-              <Text type="secondary" style={{ fontSize: '12px' }}>
-                Định dạng: JPG, PNG. Kích thước tối đa: 2MB
-              </Text>
-            </Form.Item>
-
-            <Form.Item
-              label={
-                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                  Trạng thái tài khoản
-                </Text>
-              }
-              name="status"
-              valuePropName="checked"
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                <Switch 
-                  checkedChildren="Hoạt động" 
-                  unCheckedChildren="Khóa"
+        {detailLoading ? (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Spin size="large" tip="Đang tải thông tin chi tiết..." />
+          </div>
+        ) : detailError ? (
+          <div style={{ textAlign: 'center', padding: '40px 0', color: '#ff4d4f' }}>
+            <Text type="danger">Lỗi tải thông tin: {detailError}</Text>
+          </div>
+        ) : userDetail ? (
+          <Form
+            form={form}
+            layout="vertical"
+            onFinish={handleFinish}
+            size="large"
+          >
+            <Space direction="vertical" size="large" style={{ width: '100%' }}>
+              {/* Header with Avatar */}
+              <div style={{ textAlign: 'center' }}>
+                <Avatar
+                  size={120}
+                  src={userDetail?.avatar && !avatarError ? userDetail.avatar : null}
+                  icon={<UserOutlined />}
                   style={{
-                    backgroundColor: '#13C2C2'
+                    backgroundColor: '#13C2C2',
+                    border: '3px solid #13C2C2',
+                    marginBottom: '16px'
+                  }}
+                  onError={() => {
+                    setAvatarError(true);
+                    return false;
                   }}
                 />
-                <Text type="secondary" style={{ fontSize: '13px' }}>
-                  Bật/tắt để thay đổi trạng thái tài khoản
+                <Title level={4} style={{
+                  color: '#0D364C',
+                  margin: '0 0 8px 0'
+                }}>
+                  {userDetail?.user_name}
+                </Title>
+                <Text type="secondary">
+                  Cập nhật thông tin khách hàng
                 </Text>
               </div>
-            </Form.Item>
 
-            <Divider style={{ margin: '24px 0' }} />
+              <Divider style={{ borderColor: '#13C2C2', opacity: 0.3 }} />
 
-            <Form.Item style={{ marginBottom: 0 }}>
-              <Space size="middle" style={{ width: '100%', justifyContent: 'flex-end' }}>
-                <Button
-                  size="large"
-                  onClick={onClose}
-                  icon={<CloseOutlined />}
-                  style={{
-                    borderRadius: '8px',
-                    borderColor: '#d1d5db',
-                    color: '#6b7280'
-                  }}
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <UserOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Tên người dùng
+                  </Text>
+                }
+                name="user_name"
+                rules={[{ required: true, message: "Vui lòng nhập tên người dùng!" }]}
+              >
+                <Input
+                  placeholder="Nhập tên người dùng"
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <MailOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Email
+                  </Text>
+                }
+                name="email"
+                rules={[
+                  { required: true, message: "Vui lòng nhập email!" },
+                  { type: 'email', message: "Email không hợp lệ!" }
+                ]}
+              >
+                <Input
+                  placeholder="Nhập email"
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <UserOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Mật khẩu
+                  </Text>
+                }
+                name="password"
+                rules={[
+                  { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự!" }
+                ]}
+              >
+                <Input.Password
+                  placeholder="Nhập mật khẩu mới (để trống nếu không thay đổi)"
+                  style={{ borderRadius: '8px' }}
+                />
+              </Form.Item>
+              <Text type="secondary" style={{ fontSize: '12px', marginTop: '-16px', display: 'block', marginBottom: '16px' }}>
+                Để trống nếu không muốn thay đổi mật khẩu hiện tại
+              </Text>
+
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <TeamOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Vai trò
+                  </Text>
+                }
+                name="role"
+                rules={[{ required: true, message: "Vui lòng chọn vai trò!" }]}
+              >
+                <Select
+                  placeholder="Chọn vai trò"
+                  style={{ borderRadius: '8px' }}
                 >
-                  Hủy bỏ
-                </Button>
-                <Button
-                  type="primary"
-                  htmlType="submit"
-                  loading={loading}
-                  icon={<SaveOutlined />}
-                  style={{
-                    backgroundColor: loading ? '#94a3b8' : '#0D364C',
-                    borderColor: loading ? '#94a3b8' : '#0D364C',
-                    borderRadius: '8px',
-                    fontWeight: '500',
-                    minWidth: '140px'
-                  }}
+                  {sampleRoles.map(role => (
+                    <Select.Option key={role.id} value={role.id}>
+                      {role.name}
+                    </Select.Option>
+                  ))}
+                </Select>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    <UploadOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                    Avatar
+                  </Text>
+                }
+                name="avatar"
+              >
+                <Upload
+                  listType="picture-card"
+                  maxCount={1}
+                  beforeUpload={() => false}
+                  onPreview={handlePreview}
+                  onChange={handleChange}
+                  fileList={fileList}
+                  className="avatar-upload"
                 >
-                  {loading ? 'Đang cập nhật...' : 'Cập nhật'}
-                </Button>
-              </Space>
-            </Form.Item>
-          </Space>
-        </Form>
+                  {fileList.length < 1 && (
+                    <div style={{ color: '#13C2C2' }}>
+                      <UploadOutlined />
+                      <div style={{ marginTop: 8, fontSize: '12px' }}>Tải ảnh lên</div>
+                    </div>
+                  )}
+                </Upload>
+                <Text type="secondary" style={{ fontSize: '12px' }}>
+                  Định dạng: JPG, PNG. Kích thước tối đa: 2MB
+                </Text>
+              </Form.Item>
+
+              <Form.Item
+                label={
+                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                    Trạng thái tài khoản
+                  </Text>
+                }
+                name="status"
+                valuePropName="checked"
+                getValueFromEvent={(checked) => {
+                  console.log('🔍 getValueFromEvent:', checked); // Debug log
+                  return checked;
+                }}
+                normalize={(value) => {
+                  console.log('🔍 normalize:', value); // Debug log
+                  return Boolean(value);
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                  <Switch
+                    checked={statusValue}
+                    checkedChildren="Hoạt động"
+                    unCheckedChildren="Khóa"
+                    onChange={(checked) => {
+                      console.log('🔍 Switch onChange:', checked, 'Type:', typeof checked); // Debug log
+                      setStatusValue(checked);
+                      form.setFieldValue('status', checked);
+                    }}
+                  />
+                  <Text type="secondary" style={{ fontSize: '13px' }}>
+                    {statusValue ? 'Tài khoản đang hoạt động' : 'Tài khoản đã bị khóa'}
+                  </Text>
+                </div>
+              </Form.Item>
+
+              <Divider style={{ margin: '24px 0' }} />
+
+              <Form.Item style={{ marginBottom: 0 }}>
+                <Space size="middle" style={{ width: '100%', justifyContent: 'flex-end' }}>
+                  <Button
+                    size="large"
+                    onClick={onClose}
+                    icon={<CloseOutlined />}
+                    style={{
+                      borderRadius: '8px',
+                      borderColor: '#d1d5db',
+                      color: '#6b7280'
+                    }}
+                  >
+                    Hủy bỏ
+                  </Button>
+                  <Button
+                    type="primary"
+                    htmlType="submit"
+                    loading={updateLoading}
+                    icon={<SaveOutlined />}
+                    style={{
+                      backgroundColor: updateLoading ? '#94a3b8' : '#0D364C',
+                      borderColor: updateLoading ? '#94a3b8' : '#0D364C',
+                      borderRadius: '8px',
+                      fontWeight: '500',
+                      minWidth: '140px'
+                    }}
+                  >
+                    {updateLoading ? 'Đang cập nhật...' : 'Cập nhật'}
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Space>
+          </Form>
+        ) : (
+          <div style={{ textAlign: 'center', padding: '40px 0' }}>
+            <Text type="secondary">Không có thông tin người dùng</Text>
+          </div>
+        )}
       </Card>
 
       {/* Image Preview Modal */}
-      <Modal 
-        open={modalVisible} 
-        footer={null} 
+      <Modal
+        open={modalVisible}
+        footer={null}
         onCancel={() => setModalVisible(false)}
         centered
         width={500}
@@ -341,15 +472,15 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
           }
         }}
       >
-        <img 
-          alt="preview" 
-          style={{ 
-            width: '100%', 
+        <img
+          alt="preview"
+          style={{
+            width: '100%',
             borderRadius: '8px',
             maxHeight: '400px',
             objectFit: 'contain'
-          }} 
-          src={previewImage} 
+          }}
+          src={previewImage}
         />
       </Modal>
 
@@ -388,6 +519,25 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
           .ant-select-focused:not(.ant-select-disabled).ant-select:not(.ant-select-customize-input) .ant-select-selector {
             border-color: #13C2C2 !important;
             box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.1) !important;
+          }
+
+          /* Switch màu xanh khi bật (hoạt động) */
+          .ant-switch-checked {
+            background-color: #52c41a !important;
+          }
+          
+          /* Switch màu đỏ khi tắt (khóa) */
+          .ant-switch:not(.ant-switch-checked) {
+            background-color: #ff4d4f !important;
+          }
+          
+          /* Hover effects cho switch */
+          .ant-switch-checked:hover:not(.ant-switch-disabled) {
+            background-color: #73d13d !important;
+          }
+          
+          .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
+            background-color: #ff7875 !important;
           }
         `}
       </style>

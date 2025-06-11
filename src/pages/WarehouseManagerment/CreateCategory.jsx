@@ -18,6 +18,19 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
   const { createLoading, createError } = useSelector(state => state.category);
   const { token } = useSelector(state => state.auth); // Adjust based on your auth state structure
 
+  // Set default form values when modal opens
+  useEffect(() => {
+    if (visible) {
+      form.setFieldsValue({ status: true });
+      setSwitchValue(true);
+    } else {
+      form.resetFields();
+      setSwitchValue(true);
+      setImageFile(null);
+      setPreviewImage("");
+    }
+  }, [visible, form]);
+
   // Handle create success/error
   useEffect(() => {
     if (!createLoading && !createError && visible) {
@@ -78,6 +91,7 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
 
   const handleSwitchChange = (checked) => {
     setSwitchValue(checked);
+    form.setFieldsValue({ status: checked });
   };
 
   const handleImageChange = ({ fileList }) => {
@@ -348,6 +362,25 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
         
         .ant-switch-checked {
           background-color: #13C2C2 !important;
+        }
+        
+        /* Switch màu xanh khi bật (hiển thị) */
+        .ant-switch-checked {
+          background-color: #52c41a !important;
+        }
+        
+        /* Switch màu đỏ khi tắt (ẩn) */
+        .ant-switch:not(.ant-switch-checked) {
+          background-color: #ff4d4f !important;
+        }
+        
+        /* Hover effects cho switch */
+        .ant-switch-checked:hover:not(.ant-switch-disabled) {
+          background-color: #73d13d !important;
+        }
+        
+        .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
+          background-color: #ff7875 !important;
         }
         
         .ant-input:focus {
