@@ -1,6 +1,6 @@
 import { Card, Avatar, Row, Col, Button, Form, Input, Select, Upload, message, Switch } from 'antd';
-import { 
-  UserOutlined, 
+import {
+  UserOutlined,
   MailOutlined,
   TeamOutlined,
   CheckCircleOutlined,
@@ -11,58 +11,104 @@ import {
   EditOutlined
 } from '@ant-design/icons';
 import { motion } from 'framer-motion';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import {
+  fetchUserRequest,
+  updateUserRequest
+} from '../../redux/actions/profileActions';
 
 const { Option } = Select;
 
-const ProfileManagerment = () => {
-  // Sample user data - replace with actual data fetching
-  const [userData, setUserData] = useState({
-    user_name: 'Sample User',
-    email: 'sample.user@example.com',
-    avatar: '',
-    role_id: 'A004',
-    status: true,
-    createdAt: '2024-01-01T00:00:00Z',
-    updatedAt: '2024-01-01T00:00:00Z'
-  });
+const ProfileManager = () => {
+  const dispatch = useDispatch();
+  const { user, loading, error, updateLoading, updateError, updateSuccess } = useSelector(state => state.profile);
+
   const [editMode, setEditMode] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [avatarUrl, setAvatarUrl] = useState(userData.avatar);
+  const [avatarFile, setAvatarFile] = useState(null);
+  const [avatarUrl, setAvatarUrl] = useState('');
+  const [form] = Form.useForm();
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+  const userId = storedUser ? storedUser._id : null;
+
+  useEffect(() => {
+    if (userId) {
+      dispatch(fetchUserRequest(userId));
+    }
+  }, [dispatch]);
+
+  useEffect(() => {
+    if (user) {
+      setAvatarUrl(user.avatar || '');
+      form.setFieldsValue({
+        user_name: user.user_name,
+      });
+    }
+  }, [user, form]);
+
+  useEffect(() => {
+    if (updateSuccess) {
+      setEditMode(false);
+      setAvatarFile(null);
+      message.success('Cập nhật thông tin thành công!');
+
+      // Update localStorage first
+      const storedUser = JSON.parse(localStorage.getItem("user"));
+      if (storedUser && user) {
+        const updatedUser = {
+          ...storedUser,
+          user_name: user.user_name,
+          avatar: user.avatar
+        };
+        localStorage.setItem("user", JSON.stringify(updatedUser));
+      }
+
+      // Reload page after a short delay to show success message
+      setTimeout(() => {
+        window.location.reload();
+      }, 500);
+    }
+    if (updateError) {
+      message.error(`Có lỗi xảy ra: ${updateError}`);
+    }
+  }, [updateSuccess, updateError, user]);
 
   // Format date helper function
   const formatDate = (dateString) => {
     if (!dateString) return 'N/A';
     try {
-       return new Date(dateString).toLocaleDateString();
+      return new Date(dateString).toLocaleDateString('vi-VN', {
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
+      });
     } catch {
       return 'Invalid Date';
     }
   };
 
-  // Role options
-  const roleOptions = [
-    
-    { value: 'A004', label: 'Admin' }
-  ];
-
-  // Get role display name
-  const getRoleDisplayName = (roleCode) => {
-    const role = roleOptions.find(r => r.value === roleCode);
-    return role ? role.label : roleCode;
+  // Role display mapping
+  const getRoleDisplayName = (roleName) => {
+    const roleMap = {
+      'admin': 'Quản trị viên',
+      'user': 'Người dùng',
+      'moderator': 'Điều hành viên'
+    };
+    return roleMap[roleName] || roleName;
   };
 
   // Handle avatar upload
   const handleAvatarChange = (info) => {
     if (info.file.status === 'uploading') {
-      setLoading(true);
       return;
     }
-    if (info.file.status === 'done') {
-      // Simulate getting URL from server
-      const url = URL.createObjectURL(info.file.originFileObj);
+    if (info.file.status === 'done' || info.fileList.length > 0) {
+      const file = info.file.originFileObj || info.file;
+      setAvatarFile(file);
+      const url = URL.createObjectURL(file);
       setAvatarUrl(url);
-      setLoading(false);
       message.success('Tải ảnh đại diện thành công!');
     }
   };
@@ -86,33 +132,83 @@ const ProfileManagerment = () => {
       return true;
     },
     onChange: handleAvatarChange,
+    customRequest: ({ onSuccess }) => {
+      // Custom request to prevent automatic upload
+      setTimeout(() => {
+        onSuccess("ok");
+      }, 0);
+    },
   };
 
-  // Handle form submit
-  const [form] = Form.useForm();
   const handleSubmit = async (values) => {
-    setLoading(true);
-    try {
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1200));
-      setUserData(prev => ({ ...prev, ...values, avatar: avatarUrl, role_id: values.role_id }));
-      setEditMode(false);
-      message.success('Cập nhật thông tin thành công!');
-    } catch (error) {
-      message.error('Có lỗi xảy ra khi cập nhật thông tin!');
-    } finally {
-      setLoading(false);
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    const userId = storedUser ? storedUser._id : null;
+
+    if (!userId) {
+      message.error('Không tìm thấy thông tin người dùng!');
+      return;
     }
+
+    const updateData = {
+      userId,
+      user_name: values.user_name,
+    };
+
+    // Add avatar file if selected
+    if (avatarFile) {
+      updateData.avatar = avatarFile;
+    }
+
+    dispatch(updateUserRequest(updateData));
   };
+
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-[#13C2C2]"></div>
+          <p className="mt-4 text-gray-600">Đang tải thông tin...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <p className="text-red-500 text-lg">Có lỗi xảy ra: {error}</p>
+          <Button
+            onClick={() => {
+              const userId = getCurrentUserId();
+              if (userId) dispatch(fetchUserRequest({ userId }));
+            }}
+            className="mt-4"
+          >
+            Thử lại
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user) {
+    return (
+      <div className="flex justify-center items-center min-h-screen">
+        <div className="text-center">
+          <p className="text-gray-600">Không tìm thấy thông tin người dùng</p>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-white">
-      {/* <Sidebar isAdmin isOpen={true} /> */}
       <div className="flex-1 bg-white">
         <div className="p-8">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Header Section */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="text-center mb-12 relative"
@@ -128,7 +224,7 @@ const ProfileManagerment = () => {
               {/* Left Column - Personal Info */}
               <Col xs={24} md={8}>
                 <div className="sticky top-24 space-y-6">
-                  <Card 
+                  <Card
                     className="rounded-3xl border-0 shadow-2xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-lg overflow-visible"
                   >
                     <div className="text-center relative">
@@ -141,10 +237,10 @@ const ProfileManagerment = () => {
                         {editMode ? (
                           <Upload {...uploadProps}>
                             <div className="relative cursor-pointer">
-                              <Avatar 
-                                size={160} 
-                                src={avatarUrl || userData?.avatar}
-                                icon={!avatarUrl && !userData?.avatar && <UserOutlined />} 
+                              <Avatar
+                                size={160}
+                                src={avatarUrl || user.avatar}
+                                icon={!avatarUrl && !user.avatar && <UserOutlined />}
                                 className="ring-8 ring-white shadow-2xl border-4 border-gray-100 group-hover:scale-105 transition-all duration-500 relative z-10"
                               />
                               {/* Camera overlay */}
@@ -154,38 +250,38 @@ const ProfileManagerment = () => {
                             </div>
                           </Upload>
                         ) : (
-                          <Avatar 
-                            size={160} 
-                            src={userData?.avatar}
-                            icon={!userData?.avatar && <UserOutlined />} 
+                          <Avatar
+                            size={160}
+                            src={user.avatar}
+                            icon={!user.avatar && <UserOutlined />}
                             className="ring-8 ring-white shadow-2xl border-4 border-gray-100 group-hover:scale-105 transition-all duration-500 relative z-10"
                           />
                         )}
                         {/* Role Badge with animation */}
-                        <motion.div 
+                        <motion.div
                           initial={{ y: 10, opacity: 0 }}
                           animate={{ y: 0, opacity: 1 }}
                           transition={{ delay: 0.2 }}
                           className="absolute -bottom-4 left-1/2 transform -translate-x-1/2 z-20"
                         >
-                          <div 
+                          <div
                             className="px-6 py-2 bg-gradient-to-r from-[#0D364C] via-[#13C2C2] to-[#0D364C] text-white rounded-full text-sm font-medium shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-0.5 whitespace-nowrap"
                           >
-                            {getRoleDisplayName(userData.role_id)}
+                            {getRoleDisplayName(user.role_name)}
                           </div>
                         </motion.div>
                       </div>
                       {/* User Info with animation */}
-                      <motion.div 
+                      <motion.div
                         initial={{ y: 20, opacity: 0 }}
                         animate={{ y: 0, opacity: 1 }}
                         transition={{ delay: 0.3 }}
                         className="mt-12 space-y-3"
                       >
                         <h2 className="text-3xl font-bold bg-gradient-to-r from-[#0D364C] via-[#13C2C2] to-[#0D364C] bg-clip-text text-transparent">
-                          {userData.user_name}
+                          {user.user_name}
                         </h2>
-                        <p className="text-gray-500 font-medium">{userData.email}</p>
+                        <p className="text-gray-500 font-medium">{user.email}</p>
                       </motion.div>
                       {/* Nút chỉnh sửa */}
                       {!editMode && (
@@ -210,7 +306,7 @@ const ProfileManagerment = () => {
                   transition={{ delay: 0.5 }}
                 >
                   {!editMode ? (
-                    <Card 
+                    <Card
                       className="rounded-3xl border-0 shadow-2xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-lg"
                       title={
                         <div className="flex items-center space-x-3 py-2">
@@ -223,14 +319,14 @@ const ProfileManagerment = () => {
                     >
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         {[
-                          { label: "Tên người dùng", value: userData.user_name, icon: <UserOutlined className="text-[#0D364C]" /> },
-                          { label: "Email", value: userData.email, icon: <MailOutlined className="text-[#13C2C2]" /> },
-                          { label: "Vai trò", value: getRoleDisplayName(userData.role_id), icon: <TeamOutlined className="text-[#0D364C]" /> },
-                          { label: "Trạng thái", value: userData.status ? 'Hoạt động' : 'Không hoạt động', icon: <CheckCircleOutlined className="text-[#13C2C2]" /> },
-                          { label: "Ngày tạo", value: formatDate(userData.createdAt), icon: <UserOutlined className="text-[#0D364C]" /> },
-                          { label: "Cập nhật lần cuối", value: formatDate(userData.updatedAt), icon: <UserOutlined className="text-[#13C2C2]" /> },
+                          { label: "Tên người dùng", value: user.user_name, icon: <UserOutlined className="text-[#0D364C]" /> },
+                          { label: "Email", value: user.email, icon: <MailOutlined className="text-[#13C2C2]" /> },
+                          { label: "Vai trò", value: getRoleDisplayName(user.role_name), icon: <TeamOutlined className="text-[#0D364C]" /> },
+                          { label: "Trạng thái", value: user.status ? 'Hoạt động' : 'Không hoạt động', icon: <CheckCircleOutlined className="text-[#13C2C2]" /> },
+                          { label: "Ngày tạo", value: formatDate(user.createdAt), icon: <UserOutlined className="text-[#0D364C]" /> },
+                          { label: "Cập nhật lần cuối", value: formatDate(user.updatedAt), icon: <UserOutlined className="text-[#13C2C2]" /> },
                         ].map((item, index) => (
-                          <motion.div 
+                          <motion.div
                             initial={{ opacity: 0, y: 20 }}
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: 0.1 * index }}
@@ -254,7 +350,7 @@ const ProfileManagerment = () => {
                       </div>
                     </Card>
                   ) : (
-                    <Card 
+                    <Card
                       className="rounded-3xl border-0 shadow-2xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-lg"
                       title={
                         <div className="flex items-center space-x-3 py-2">
@@ -268,50 +364,49 @@ const ProfileManagerment = () => {
                       <Form
                         form={form}
                         layout="vertical"
-                        initialValues={{
-                          user_name: userData.user_name,
-                          email: userData.email,
-                          role_id: userData.role_id,
-                          status: userData.status
-                        }}
                         onFinish={handleSubmit}
                         autoComplete="off"
                       >
                         <Form.Item
                           label="Tên người dùng"
                           name="user_name"
-                          rules={[{ required: true, message: 'Vui lòng nhập tên người dùng!' }]}
+                          rules={[
+                            { required: true, message: 'Vui lòng nhập tên người dùng!' },
+                            { min: 2, message: 'Tên người dùng phải có ít nhất 2 ký tự!' }
+                          ]}
                         >
-                          <Input size="large" className="rounded-xl border-2 hover:border-[#13C2C2] focus:border-[#13C2C2] transition-colors" />
+                          <Input
+                            size="large"
+                            className="rounded-xl border-2 hover:border-[#13C2C2] focus:border-[#13C2C2] transition-colors"
+                          />
                         </Form.Item>
-                        <Form.Item
-                          label="Email"
-                          name="email"
-                          rules={[{ required: true, message: 'Vui lòng nhập email!' }, { type: 'email', message: 'Email không hợp lệ!' }]}
-                        >
-                          <Input size="large" className="rounded-xl border-2 hover:border-[#13C2C2] focus:border-[#13C2C2] transition-colors" />
-                        </Form.Item>
-                        
+
                         <div className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-100">
                           <Button
                             size="large"
                             className="px-8 py-2 h-auto rounded-xl border-2 border-gray-300 hover:border-gray-400 transition-colors"
-                            onClick={() => setEditMode(false)}
+                            onClick={() => {
+                              setEditMode(false);
+                              setAvatarFile(null);
+                              setAvatarUrl(user.avatar || '');
+                              form.resetFields();
+                            }}
                           >
                             Hủy
                           </Button>
                           <Button
                             type="primary"
                             size="large"
-                            loading={loading}
+                            loading={updateLoading}
                             icon={<SaveOutlined />}
                             className="px-8 py-2 h-auto rounded-xl bg-gradient-to-r from-[#0D364C] via-[#13C2C2] to-[#0D364C] border-0 hover:shadow-lg hover:-translate-y-0.5 transition-all duration-300"
                             htmlType="submit"
                           >
-                            {loading ? 'Đang lưu...' : 'Lưu thay đổi'}
+                            {updateLoading ? 'Đang lưu...' : 'Lưu thay đổi'}
                           </Button>
                         </div>
                       </Form>
+
                     </Card>
                   )}
                 </motion.div>
@@ -324,4 +419,4 @@ const ProfileManagerment = () => {
   );
 };
 
-export default ProfileManagerment;
+export default ProfileManager;

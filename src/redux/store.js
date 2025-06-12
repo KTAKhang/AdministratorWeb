@@ -3,14 +3,16 @@ import { createStore, applyMiddleware, combineReducers } from "redux";
 import createSagaMiddleware from "redux-saga";
 import authReducer from "./reducers/authReducer";
 import categoryReducer from "./reducers/categoryReducer";
+import orderReducer from "./reducers/orderReducer";
 import productReducer from "./reducers/productReducer";
 import reviewReducer from "./reducers/reviewReducer";
 import userReducer from "./reducers/userReducer";
-import rootSaga from "./sagas/rootSaga";
-
+import profileReducer from "./reducers/profileReducer"; 
 const rootReducer = combineReducers({
   auth: authReducer,
   category: categoryReducer,
+  order: orderReducer,
+  profile: profileReducer,
   product: productReducer,
   review: reviewReducer,
   user: userReducer,
