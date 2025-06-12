@@ -35,13 +35,21 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
   const [previewImage, setPreviewImage] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
+  const [statusValue, setStatusValue] = useState(true);
 
   useEffect(() => {
     if (visible && categoryData) {
+      const currentStatus = categoryData.status !== undefined ? categoryData.status : true;
+
       form.setFieldsValue({
         name: categoryData.name,
-        status: categoryData.status,
+        status: currentStatus,
       });
+
+      setStatusValue(currentStatus);
+      console.log('🔍 CategoryData status:', categoryData.status);
+      console.log('🔍 Current status value:', currentStatus);
+
       // Set initial image if exists
       if (categoryData.image) {
         setFileList([
@@ -60,6 +68,7 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
       setFileList([]);
       setPreviewImage("");
       setModalVisible(false);
+      setStatusValue(true);
     }
   }, [visible, categoryData, form]);
 
@@ -305,19 +314,18 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
                   <Switch
+                    checked={statusValue}
                     checkedChildren="Hiển thị"
                     unCheckedChildren="Ẩn"
                     disabled={updateLoading}
                     onChange={(checked) => {
                       console.log('Switch changed:', checked, 'Type:', typeof checked);
+                      setStatusValue(checked);
                       form.setFieldValue('status', checked);
-                    }}
-                    style={{
-                      backgroundColor: '#13C2C2'
                     }}
                   />
                   <Text type="secondary" style={{ fontSize: '13px' }}>
-                    Bật/tắt để hiển thị category trên website
+                    {statusValue ? 'Category đang hiển thị trên website' : 'Category đang bị ẩn khỏi website'}
                   </Text>
                 </div>
               </Form.Item>
@@ -416,6 +424,25 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
         .ant-input-focused {
           border-color: #13C2C2 !important;
           box-shadow: 0 0 0 2px rgba(19, 194, 194, 0.2) !important;
+        }
+
+        /* Switch màu xanh khi bật (hiển thị) */
+        .ant-switch-checked {
+          background-color: #52c41a !important;
+        }
+        
+        /* Switch màu đỏ khi tắt (ẩn) */
+        .ant-switch:not(.ant-switch-checked) {
+          background-color: #ff4d4f !important;
+        }
+        
+        /* Hover effects cho switch */
+        .ant-switch-checked:hover:not(.ant-switch-disabled) {
+          background-color: #73d13d !important;
+        }
+        
+        .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
+          background-color: #ff7875 !important;
         }
       `}</style>
     </Modal>

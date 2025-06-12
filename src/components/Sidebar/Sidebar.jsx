@@ -45,29 +45,6 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
     navigate('/');
   };
 
-  const financeMenuItems = [
-    { 
-      title: "Dashboard", 
-      path: "/finance", 
-      icon: <HomeOutlined />,
-      color: "#FF6B6B"
-    }
-  ];
-
-  const claimsItems = [
-    { 
-      title: "Approved", 
-      path: "/finance/approved", 
-      icon: <CheckCircleOutlined />,
-      color: "#4ECDC4"
-    },
-    { 
-      title: "Paid", 
-      path: "/finance/paid", 
-      icon: <DollarOutlined />,
-      color: "#45B7D1"
-    },
-  ];
 
   const adminMenuItems = [
     {
@@ -84,13 +61,13 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
         {
           title: "Quản Lý Category",
           path: "/admin/category",
-          icon: <DatabaseOutlined />,
+          icon: <AppstoreOutlined />,
           color: "#FECA57"
         },
         {
           title: "Quản Lý Sản Phẩm",
           path: "/admin/product",
-          icon: <AppstoreOutlined />,
+          icon: <DatabaseOutlined />,
           color: "#FF9FF3"
         }
       ]
@@ -107,30 +84,17 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
       icon: <ShoppingCartOutlined />,
       color: "#5F27CD"
     },
+    {
+      title: "Quản Lý Reviews",
+      path: "/admin/review",
+      icon: <ProfileOutlined />,
+      color: "#FF9F43"
+    },
   ];
 
-  const approverMenuItems = [
-    {
-      title: "Approver Dashboard",
-      path: "/approver",
-      icon: <HomeOutlined />,
-      color: "#FF6B6B"
-    },
-    {
-      title: "For my Vetting",
-      path: "/approver/vetting",
-      icon: <ProjectOutlined />,
-      color: "#4ECDC4"
-    },
-    {
-      title: "Claims History",
-      path: "/approver/history",
-      icon: <FileTextOutlined />,
-      color: "#45B7D1"
-    }
-  ];
 
- 
+
+
   const generalMenuItems = [
     {
       title: "Home",
@@ -153,15 +117,14 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
           >
             <Link
               to={item.path}
-              className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
-                location.pathname === item.path
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
-                  : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
-              }`}
+              className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${location.pathname === item.path
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
+                }`}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-              <div className={`relative z-10 p-2 rounded-lg transition-colors duration-300`} style={{backgroundColor: hoveredItem === idx ? `${item.color}20` : 'transparent'}}>
-                <span className="text-xl" style={{color: location.pathname === item.path ? 'white' : item.color}}>{item.icon}</span>
+              <div className={`relative z-10 p-2 rounded-lg transition-colors duration-300`} style={{ backgroundColor: hoveredItem === idx ? `${item.color}20` : 'transparent' }}>
+                <span className="text-xl" style={{ color: location.pathname === item.path ? 'white' : item.color }}>{item.icon}</span>
               </div>
               <AnimatePresence>
                 {isOpen && (
@@ -183,16 +146,15 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
               whileHover={{ scale: 1.02, x: 5 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => setIsWarehouseOpen((open) => !open)}
-              className={`group relative flex items-center justify-between w-full px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
-                location.pathname === item.path
-                  ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
-                  : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
-              }`}
+              className={`group relative flex items-center justify-between w-full px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${location.pathname === item.path
+                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+                : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
+                }`}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
               <span className="relative z-10 flex items-center gap-4">
-                <div className="p-2 rounded-lg" style={{backgroundColor: `${item.color}20`}}>
-                  <span className="text-xl" style={{color: item.color}}>{item.icon}</span>
+                <div className="p-2 rounded-lg" style={{ backgroundColor: `${item.color}20` }}>
+                  <span className="text-xl" style={{ color: item.color }}>{item.icon}</span>
                 </div>
                 <AnimatePresence>
                   {isOpen && (
@@ -237,15 +199,14 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
                     >
                       <Link
                         to={child.path}
-                        className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 overflow-hidden ${
-                          location.pathname === child.path
-                            ? 'bg-white text-indigo-600 shadow-md transform translate-x-2'
-                            : 'text-gray-400 hover:bg-white/10 hover:text-white hover:translate-x-1'
-                        }`}
+                        className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 overflow-hidden ${location.pathname === child.path
+                          ? 'bg-white text-indigo-600 shadow-md transform translate-x-2'
+                          : 'text-gray-400 hover:bg-white/10 hover:text-white hover:translate-x-1'
+                          }`}
                       >
                         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                        <div className="relative z-10 p-1.5 rounded-md" style={{backgroundColor: `${child.color}15`}}>
-                          <span className="text-lg" style={{color: child.color}}>{child.icon}</span>
+                        <div className="relative z-10 p-1.5 rounded-md" style={{ backgroundColor: `${child.color}15` }}>
+                          <span className="text-lg" style={{ color: child.color }}>{child.icon}</span>
                         </div>
                         <span className="relative z-10 font-medium">{child.title}</span>
                       </Link>
@@ -272,15 +233,14 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
         >
           <Link
             to={item.path}
-            className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
-              location.pathname === item.path
-                ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
-                : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
-            }`}
+            className={`group relative flex items-center gap-4 px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${location.pathname === item.path
+              ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+              : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
+              }`}
           >
             <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
-            <div className={`relative z-10 p-2 rounded-lg transition-colors duration-300`} style={{backgroundColor: hoveredItem === index ? `${item.color}20` : 'transparent'}}>
-              <span className="text-xl" style={{color: location.pathname === item.path ? 'white' : item.color}}>{item.icon}</span>
+            <div className={`relative z-10 p-2 rounded-lg transition-colors duration-300`} style={{ backgroundColor: hoveredItem === index ? `${item.color}20` : 'transparent' }}>
+              <span className="text-xl" style={{ color: location.pathname === item.path ? 'white' : item.color }}>{item.icon}</span>
             </div>
             <AnimatePresence>
               {isOpen && (
@@ -306,11 +266,10 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
         whileHover={{ scale: 1.02, x: 5 }}
         whileTap={{ scale: 0.98 }}
         onClick={() => setIsClaimsOpen(!isClaimsOpen)}
-        className={`group relative w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${
-          isClaimsOpen 
-            ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25' 
-            : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
-        }`}
+        className={`group relative w-full flex items-center justify-between px-4 py-3.5 rounded-xl transition-all duration-300 overflow-hidden ${isClaimsOpen
+          ? 'bg-gradient-to-r from-indigo-500 to-purple-600 text-white shadow-lg shadow-indigo-500/25'
+          : 'text-gray-300 hover:bg-gradient-to-r hover:from-gray-700 hover:to-gray-600 hover:text-white'
+          }`}
       >
         <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-700"></div>
         <div className="relative z-10 flex items-center gap-4">
@@ -361,15 +320,14 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
               >
                 <Link
                   to={item.path}
-                  className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 overflow-hidden ${
-                    location.pathname === item.path
-                      ? 'bg-white text-indigo-600 shadow-md transform translate-x-2'
-                      : 'text-gray-400 hover:bg-white/10 hover:text-white hover:translate-x-1'
-                  }`}
+                  className={`group relative flex items-center gap-3 px-4 py-2.5 rounded-lg transition-all duration-300 overflow-hidden ${location.pathname === item.path
+                    ? 'bg-white text-indigo-600 shadow-md transform translate-x-2'
+                    : 'text-gray-400 hover:bg-white/10 hover:text-white hover:translate-x-1'
+                    }`}
                 >
                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/5 to-transparent transform -skew-x-12 -translate-x-full group-hover:translate-x-full transition-transform duration-500"></div>
-                  <div className="relative z-10 p-1.5 rounded-md" style={{backgroundColor: `${item.color}15`}}>
-                    <span className="text-lg" style={{color: item.color}}>{item.icon}</span>
+                  <div className="relative z-10 p-1.5 rounded-md" style={{ backgroundColor: `${item.color}15` }}>
+                    <span className="text-lg" style={{ color: item.color }}>{item.icon}</span>
                   </div>
                   <span className="relative z-10 font-medium">{item.title}</span>
                 </Link>

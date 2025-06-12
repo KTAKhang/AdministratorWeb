@@ -1,10 +1,11 @@
 import { useState, useEffect, useCallback } from "react";
-import { 
-  Card, 
-  Table, 
-  Button, 
-  Tag, 
-  Image, 
+import { useDispatch, useSelector } from "react-redux";
+import {
+  Card,
+  Table,
+  Button,
+  Tag,
+  Image,
   Input,
   Space,
   Typography,
@@ -13,106 +14,89 @@ import {
   Col,
   Badge,
   Avatar,
-  Tooltip
+  Tooltip,
+  Alert
 } from "antd";
-import { 
-  EditOutlined, 
-  PlusOutlined, 
+import {
+  EditOutlined,
   EyeOutlined,
   SearchOutlined,
   UserOutlined,
   TeamOutlined,
   CheckCircleOutlined,
   StopOutlined,
-  MailOutlined
+  MailOutlined,
+  ReloadOutlined
 } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
-import CreateCustomer from "./CreateCustomer";
 import UpdateCustomer from "./UpdateCustomer";
 import ViewCustomerDetail from "./ViewCustomerDetail";
+import {
+  getAllUsersRequest,
+  setUserSearchText,
+  setUserPagination
+} from "../../redux/actions/userActions";
 
 const { Title, Text } = Typography;
 
-// Sample data for customers based on the provided schema
-const sampleCustomers = [
-  {
-    _id: "u1",
-    user_name: "john_doe",
-    email: "john.doe@example.com",
-    avatar: "https://via.placeholder.com/60x60?text=User1",
-    role_id: "r1", // Sample role ID
-    status: true,
-    createdAt: "2024-06-01T10:00:00Z"
-  },
-  {
-    _id: "u2",
-    user_name: "jane_smith",
-    email: "jane.smith@example.com",
-    avatar: "https://via.placeholder.com/60x60?text=User2",
-    role_id: "r2", // Sample role ID
-    status: true,
-    createdAt: "2024-06-02T11:00:00Z"
-  },
-  {
-    _id: "u3",
-    user_name: "peter_jones",
-    email: "peter.jones@example.com",
-    avatar: "https://via.placeholder.com/60x60?text=User3",
-    role_id: "r1", // Sample role ID
-    status: false,
-    createdAt: "2024-06-03T12:00:00Z"
-  }
-];
-
 const CustomerManagement = () => {
-  const [customers, setCustomers] = useState(sampleCustomers);
-  const [searchText, setSearchText] = useState("");
-  const [pagination, setPagination] = useState({
-    current: 1,
-    pageSize: 10,
-    total: sampleCustomers.length,
-  });
-  const [isCreateModalVisible, setIsCreateModalVisible] = useState(false);
+  const dispatch = useDispatch();
+
+  // Redux state
+  const {
+    users,
+    loading,
+    error,
+    searchText,
+    pagination,
+    stats: userStats
+  } = useSelector(state => state.user);
+
+  // Local state for modals
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isViewDetailModalVisible, setIsViewDetailModalVisible] = useState(false);
+  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
-  // Calculate statistics
-  const stats = {
-    total: customers.length,
-    active: customers.filter(c => c.status).length,
-    inactive: customers.filter(c => !c.status).length,
-  };
+  // Statistics từ Redux state
+  const stats = userStats;
 
+  // Fetch users từ Redux - chỉ gọi khi cần thiết
+  const fetchUsers = useCallback((page = 1, limit = 10, force = false) => {
+    // Chỉ fetch nếu chưa có data hoặc được ép buộc
+    if (force || !hasInitialLoad || users.length === 0) {
+      dispatch(getAllUsersRequest(page, limit));
+    }
+  }, [dispatch, hasInitialLoad, users.length]);
+
+  // Handle search với debounce
   const handleSearch = useCallback(
     debounce((value) => {
-      setSearchText(value);
-      setPagination((prev) => ({ ...prev, current: 1 }));
+      dispatch(setUserSearchText(value));
     }, 500),
-    []
+    [dispatch]
   );
 
+  // Load data khi component mount - chỉ 1 lần
   useEffect(() => {
-    const filtered = sampleCustomers.filter(customer =>
-      customer.user_name.toLowerCase().includes(searchText.toLowerCase()) ||
-      customer.email.toLowerCase().includes(searchText.toLowerCase())
-    );
-    setCustomers(filtered);
-    setPagination(prev => ({ ...prev, total: filtered.length }));
-  }, [searchText]);
+    if (!hasInitialLoad) {
+      fetchUsers(pagination.current, pagination.pageSize, true);
+      setHasInitialLoad(true);
+    }
+  }, [fetchUsers, pagination.current, pagination.pageSize, hasInitialLoad]);
 
-  const handleCreateSuccess = (newCustomerData) => {
-    toast.success("Thêm khách hàng thành công");
-    setIsCreateModalVisible(false);
-    const newCustomer = { 
-      _id: `u${sampleCustomers.length + 1}`, 
-      ...newCustomerData,
-      createdAt: new Date().toISOString(),
+  // Reset hasInitialLoad khi component unmount
+  useEffect(() => {
+    return () => {
+      setHasInitialLoad(false);
     };
-    sampleCustomers.push(newCustomer);
-    setCustomers([...sampleCustomers]);
-    setPagination(prev => ({...prev, total: sampleCustomers.length}));
+  }, []);
+
+  // Refresh data
+  const handleRefresh = () => {
+    fetchUsers(pagination.current, pagination.pageSize, true);
+    dispatch(setUserSearchText(""));
   };
 
   const handleOpenUpdateModal = (customer) => {
@@ -124,10 +108,8 @@ const CustomerManagement = () => {
     toast.success(`Cập nhật thông tin khách hàng thành công`);
     setIsUpdateModalVisible(false);
     setSelectedCustomer(null);
-    const updatedCustomers = customers.map(customer => 
-      customer._id === id ? { ...customer, ...updatedValues } : customer
-    );
-    setCustomers(updatedCustomers);
+    // Refresh data sau khi cập nhật
+    handleRefresh();
   };
 
   const handleCloseUpdateModal = () => {
@@ -151,20 +133,21 @@ const CustomerManagement = () => {
       key: "user",
       render: (_, record) => (
         <Space>
-          <Avatar 
+          <Avatar
             src={record.avatar}
-            icon={!record.avatar && <UserOutlined />}
-            style={{ 
-              backgroundColor: !record.avatar ? '#13C2C2' : undefined
+            icon={<UserOutlined />}
+            style={{
+              backgroundColor: '#13C2C2'
             }}
+            onError={() => false}
           />
           <div>
             <Text strong style={{ color: '#0D364C', display: 'block' }}>
               {record.user_name}
             </Text>
             <Text type="secondary" style={{ fontSize: '12px' }}>
-              <MailOutlined style={{ marginRight: '4px' }} />
-              {record.email}
+              <UserOutlined style={{ marginRight: '4px' }} />
+              ID: {record._id.slice(-6)}
             </Text>
           </div>
         </Space>
@@ -172,16 +155,16 @@ const CustomerManagement = () => {
     },
     {
       title: "Vai trò",
-      dataIndex: "role_id",
-      key: "role_id",
-      render: (role) => (
-        <Tag color="#13C2C2" style={{ 
+      dataIndex: "role_name",
+      key: "role_name",
+      render: (roleName) => (
+        <Tag color="#13C2C2" style={{
           borderRadius: '16px',
           padding: '4px 12px',
           fontSize: '14px',
           fontWeight: '500'
         }}>
-          {role === 'r1' ? 'Khách hàng' : 'VIP'}
+          {roleName || 'Khách hàng'}
         </Tag>
       ),
     },
@@ -190,13 +173,13 @@ const CustomerManagement = () => {
       dataIndex: "status",
       key: "status",
       render: (status) => (
-        <Badge 
-          status={status ? 'success' : 'error'} 
+        <Badge
+          status={status ? 'success' : 'error'}
           text={
-            <Tag 
+            <Tag
               color={status ? '#52c41a' : '#ff4d4f'}
               icon={status ? <CheckCircleOutlined /> : <StopOutlined />}
-              style={{ 
+              style={{
                 borderRadius: '16px',
                 fontWeight: '500',
                 padding: '4px 12px'
@@ -208,33 +191,18 @@ const CustomerManagement = () => {
         />
       )
     },
-    {
-      title: "Ngày tạo",
-      dataIndex: "createdAt",
-      key: "createdAt",
-      render: (date) => (
-        <Text type="secondary">
-          {new Date(date).toLocaleDateString('vi-VN', {
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-            hour: '2-digit',
-            minute: '2-digit'
-          })}
-        </Text>
-      )
-    },
+
     {
       title: "Hành động",
       key: "action",
       render: (_, record) => (
         <Space size="small">
           <Tooltip title="Xem chi tiết">
-            <Button 
+            <Button
               type="text"
-              icon={<EyeOutlined />} 
+              icon={<EyeOutlined />}
               onClick={() => handleOpenViewDetailModal(record)}
-              style={{ 
+              style={{
                 color: '#13C2C2',
                 borderColor: '#13C2C2'
               }}
@@ -247,11 +215,11 @@ const CustomerManagement = () => {
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
-            <Button 
+            <Button
               type="text"
-              icon={<EditOutlined />} 
+              icon={<EditOutlined />}
               onClick={() => handleOpenUpdateModal(record)}
-              style={{ 
+              style={{
                 color: '#0D364C',
                 borderColor: '#0D364C'
               }}
@@ -269,7 +237,7 @@ const CustomerManagement = () => {
   ];
 
   return (
-    <div style={{ 
+    <div style={{
       padding: '24px',
       background: `linear-gradient(135deg, #13C2C205 0%, #0D364C05 100%)`,
       minHeight: '100vh'
@@ -277,8 +245,8 @@ const CustomerManagement = () => {
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={8}>
-          <Card 
-            style={{ 
+          <Card
+            style={{
               borderRadius: '12px',
               border: `1px solid #13C2C230`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -293,8 +261,8 @@ const CustomerManagement = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card 
-            style={{ 
+          <Card
+            style={{
               borderRadius: '12px',
               border: `1px solid #13C2C230`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -309,8 +277,8 @@ const CustomerManagement = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card 
-            style={{ 
+          <Card
+            style={{
               borderRadius: '12px',
               border: `1px solid #13C2C230`,
               boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
@@ -335,9 +303,9 @@ const CustomerManagement = () => {
         }}
         title={
           <Space>
-            <Avatar 
-              style={{ backgroundColor: '#13C2C2' }} 
-              icon={<TeamOutlined />} 
+            <Avatar
+              style={{ backgroundColor: '#13C2C2' }}
+              icon={<TeamOutlined />}
             />
             <Title level={3} style={{ margin: 0, color: '#0D364C' }}>
               Quản lý Khách hàng
@@ -345,19 +313,36 @@ const CustomerManagement = () => {
           </Space>
         }
       >
+        {/* Error Alert */}
+        {error && (
+          <Alert
+            message="Lỗi tải dữ liệu"
+            description={error}
+            type="error"
+            closable
+            style={{ marginBottom: '16px' }}
+            action={
+              <Button size="small" danger onClick={handleRefresh}>
+                Thử lại
+              </Button>
+            }
+          />
+        )}
+
         {/* Header Actions */}
-        <div style={{ 
-          marginBottom: '24px', 
-          display: 'flex', 
-          justifyContent: 'space-between', 
+        <div style={{
+          marginBottom: '24px',
+          display: 'flex',
+          justifyContent: 'space-between',
           alignItems: 'center',
           flexWrap: 'wrap',
           gap: '16px'
         }}>
           <Input.Search
             placeholder="Tìm kiếm khách hàng..."
+            value={searchText}
             onChange={(e) => handleSearch(e.target.value)}
-            style={{ 
+            style={{
               width: '320px',
               maxWidth: '100%'
             }}
@@ -365,29 +350,31 @@ const CustomerManagement = () => {
             prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
             allowClear
             onSearch={(value) => handleSearch(value)}
+            disabled={loading}
           />
-          <Button 
-            type="primary" 
-            icon={<PlusOutlined />} 
-            onClick={() => setIsCreateModalVisible(true)}
-            size="large"
-            style={{ 
-              backgroundColor: '#13C2C2', 
-              borderColor: '#13C2C2',
-              borderRadius: '8px',
-              fontWeight: '500',
-              boxShadow: `0 4px 12px #13C2C240`
-            }}
-          >
-            Thêm Khách hàng
-          </Button>
+          <Space>
+            <Button
+              icon={<ReloadOutlined />}
+              onClick={handleRefresh}
+              size="large"
+              loading={loading}
+              style={{
+                borderColor: '#13C2C2',
+                color: '#13C2C2',
+                borderRadius: '8px'
+              }}
+            >
+              Làm mới
+            </Button>
+          </Space>
         </div>
 
-        {/* Table */}
+        {/* Table - Chỉ sử dụng loading của Table, không wrap thêm Spin */}
         <Table
           rowKey="_id"
           columns={columns}
-          dataSource={customers}
+          dataSource={users}
+          loading={loading}
           pagination={{
             current: pagination.current,
             pageSize: pagination.pageSize,
@@ -400,30 +387,28 @@ const CustomerManagement = () => {
               </Text>
             ),
             onChange: (page, pageSize) => {
-              setPagination((prev) => ({
-                ...prev,
+              dispatch(setUserPagination({
                 current: page,
                 pageSize: pageSize || 10,
               }));
+              // Fetch new data khi thay đổi pagination
+              fetchUsers(page, pageSize || 10, true);
             },
           }}
           style={{
             borderRadius: '12px',
             overflow: 'hidden'
           }}
-          rowClassName={(record, index) => 
+          rowClassName={(record, index) =>
             index % 2 === 0 ? '' : 'ant-table-row-alternate'
           }
+          locale={{
+            emptyText: loading ? 'Đang tải...' : 'Không có dữ liệu'
+          }}
         />
       </Card>
 
       {/* Modals */}
-      <CreateCustomer
-        visible={isCreateModalVisible}
-        onClose={() => setIsCreateModalVisible(false)}
-        onSuccess={handleCreateSuccess}
-      />
-
       {selectedCustomer && (
         <UpdateCustomer
           visible={isUpdateModalVisible}

@@ -1,9 +1,9 @@
 import { Modal, Button, Descriptions, Tag, Image, Card, Space, Divider, Typography, Avatar } from "antd";
-import { 
-  EyeOutlined, 
-  EyeInvisibleOutlined, 
-  CalendarOutlined, 
-  TagOutlined, 
+import {
+  EyeOutlined,
+  EyeInvisibleOutlined,
+  CalendarOutlined,
+  TagOutlined,
   FileImageOutlined,
   CloseOutlined
 } from "@ant-design/icons";
@@ -46,9 +46,9 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
     <Modal
       open={visible}
       title={
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 8,
           color: '#0D364C'
         }}>
@@ -100,20 +100,20 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
         >
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             {/* Header with Avatar */}
-            <div style={{ 
+            <div style={{
               textAlign: 'center',
               marginBottom: '24px'
             }}>
-              <Avatar 
-                size={100} 
+              <Avatar
+                size={100}
                 src={categoryData.image}
                 icon={!categoryData.image && <FileImageOutlined />}
-                style={{ 
+                style={{
                   border: '3px solid #13C2C2',
                   marginBottom: '16px'
                 }}
               />
-              <Title level={3} style={{ 
+              <Title level={3} style={{
                 margin: '8px 0',
                 color: '#0D364C'
               }}>
@@ -131,14 +131,20 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
                   <TagOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   ID Category
                 </Text>
-                <Tag color="#0D364C" style={{ 
-                  fontFamily: 'monospace',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  marginTop: '8px'
-                }}>
-                  {categoryData._id}
-                </Tag>
+                <div style={{ marginTop: '8px' }}>
+                  <Text style={{
+                    fontFamily: 'monospace',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    backgroundColor: '#f3f4f6',
+                    border: '1px solid #e5e7eb',
+                    color: '#374151',
+                    fontSize: '13px',
+                    display: 'inline-block'
+                  }}>
+                    {categoryData._id}
+                  </Text>
+                </div>
               </div>
 
               <div className="info-item">
@@ -146,7 +152,7 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
                   <TagOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Tên Category
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -163,8 +169,8 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
                 </Text>
                 <div style={{ marginTop: '12px' }}>
                   {categoryData.image ? (
-                    <Image 
-                      src={categoryData.image} 
+                    <Image
+                      src={categoryData.image}
                       width={200}
                       style={{
                         borderRadius: '8px',
@@ -205,7 +211,7 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
                   <CalendarOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Thời gian tạo
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -218,7 +224,7 @@ const ViewCategoryDetail = ({ visible, categoryData, onClose }) => {
           </Space>
         </Card>
       ) : (
-        <div style={{ 
+        <div style={{
           textAlign: 'center',
           padding: '40px 0'
         }}>
