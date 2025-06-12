@@ -1,6 +1,6 @@
-import { Modal, Button, Tag, Image, Typography, Card, Space, Divider, Avatar } from "antd";
-import { 
-  EyeOutlined, 
+import { Modal, Button, Tag, Image, Typography, Card, Space, Divider, Avatar, Spin } from "antd";
+import {
+  EyeOutlined,
   EyeInvisibleOutlined,
   CalendarOutlined,
   TagOutlined,
@@ -13,10 +13,23 @@ import {
   InfoCircleOutlined
 } from "@ant-design/icons";
 import PropTypes from "prop-types";
+import { useState, useEffect } from "react";
 
 const { Title, Text } = Typography;
 
 const ViewProductDetail = ({ visible, productData, onClose }) => {
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (visible && productData) {
+      setLoading(true);
+      // Simulate loading time
+      setTimeout(() => {
+        setLoading(false);
+      }, 500);
+    }
+  }, [visible, productData]);
+
   const formatPrice = (price) => {
     return new Intl.NumberFormat('vi-VN', {
       style: 'currency',
@@ -56,9 +69,9 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
     <Modal
       open={visible}
       title={
-        <div style={{ 
-          display: 'flex', 
-          alignItems: 'center', 
+        <div style={{
+          display: 'flex',
+          alignItems: 'center',
           gap: 8,
           color: '#0D364C'
         }}>
@@ -100,7 +113,14 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
         }
       }}
     >
-      {productData ? (
+      {loading ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '40px 0'
+        }}>
+          <Spin size="large" style={{ color: '#13C2C2' }} />
+        </div>
+      ) : productData ? (
         <Card
           bordered={false}
           style={{
@@ -110,20 +130,20 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
         >
           <Space direction="vertical" size="large" style={{ width: '100%' }}>
             {/* Header with Avatar */}
-            <div style={{ 
+            <div style={{
               textAlign: 'center',
               marginBottom: '24px'
             }}>
-              <Avatar 
-                size={120} 
+              <Avatar
+                size={120}
                 src={productData.image}
                 icon={!productData.image && <FileImageOutlined />}
-                style={{ 
+                style={{
                   border: '3px solid #13C2C2',
                   marginBottom: '16px'
                 }}
               />
-              <Title level={3} style={{ 
+              <Title level={3} style={{
                 margin: '8px 0',
                 color: '#0D364C'
               }}>
@@ -146,14 +166,20 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
                   <TagOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   ID Sản phẩm
                 </Text>
-                <Tag color="#0D364C" style={{ 
-                  fontFamily: 'monospace',
-                  padding: '4px 12px',
-                  borderRadius: '4px',
-                  marginTop: '8px'
-                }}>
-                  {productData._id}
-                </Tag>
+                <div style={{ marginTop: '8px' }}>
+                  <Text style={{
+                    fontFamily: 'monospace',
+                    padding: '6px 12px',
+                    borderRadius: '6px',
+                    backgroundColor: '#f3f4f6',
+                    border: '1px solid #e5e7eb',
+                    color: '#374151',
+                    fontSize: '13px',
+                    display: 'inline-block'
+                  }}>
+                    {productData._id}
+                  </Text>
+                </div>
               </div>
 
               <div className="info-item">
@@ -172,7 +198,7 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
                   <InfoCircleOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Mô tả ngắn
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -187,7 +213,7 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
                   <InfoCircleOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Mô tả chi tiết
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -202,7 +228,7 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
                   <ShopOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Nhà sản xuất
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -217,7 +243,7 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
                   <UserOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Đối tượng
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -232,7 +258,7 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
                   <CalendarOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   Thời gian tạo
                 </Text>
-                <Text style={{ 
+                <Text style={{
                   display: 'block',
                   color: '#0D364C',
                   fontSize: '14px',
@@ -245,7 +271,7 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
           </Space>
         </Card>
       ) : (
-        <div style={{ 
+        <div style={{
           textAlign: 'center',
           padding: '40px 0'
         }}>

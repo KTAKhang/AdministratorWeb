@@ -7,6 +7,7 @@ import CategoryManagement from "../pages/WarehouseManagerment/CategoryManagement
 import ProductManagement from "../pages/WarehouseManagerment/ProductManagement";
 import CustomerManagement from "../pages/CustomerManagement/CustomerManagement";
 import OrderManagement from "../pages/OrderManagerment/OrderManagerment";
+import ReviewManagement from "../pages/ReviewManagement/ReviewManagement";
 import ProfileManagement from "../pages/ProfileManagerment/ProfileManagerment";
 import UpdatePassword from "../pages/ProfileManagerment/UpdatePassword";
 import PrivateRoute from "../components/PrivateRouter"; // đảm bảo component này hoạt động
@@ -32,6 +33,7 @@ export const routes = [
       { path: "product", element: <ProductManagement /> },
       { path: "customer", element: <CustomerManagement /> },
       { path: "order", element: <OrderManagement /> },
+      { path: "review", element: <ReviewManagement /> },
       { path: "profile", element: <ProfileManagement /> },
       { path: "change-password", element: <UpdatePassword /> },
     ],
