@@ -33,7 +33,7 @@ const getAuthHeaders = () => {
 };
 
 // API call to get all reviews with pagination
-const apiGetAllReviews = async (page = 1, limit = 10) => {
+const apiGetAllReviews = async (page = 1, limit = 5) => {
     try {
         const response = await axios.get(
             `${API_BASE_URL}/product-review/all?page=${page}&limit=${limit}`,
@@ -119,42 +119,50 @@ const formatReviewForDisplay = (review) => ({
 // Get all reviews saga
 function* getAllReviewsSaga(action) {
     try {
-        const { page = 1, limit = 10, search = '' } = action.payload || {};
+        const { page = 1, limit = 5, search = '' } = action.payload || {};
 
-        // Lấy cả review và product song song
+        // Lấy cả review và product song song để có đầy đủ thông tin sản phẩm
         const [reviewData, productData] = yield all([
             call(apiGetAllReviews, page, limit),
-            call(apiGetAllProducts, 1, 1000) // lấy tối đa 1000 sản phẩm, có thể phân trang nếu cần
+            call(apiGetAllProducts, 1, 1000) // lấy tối đa 1000 sản phẩm để map
         ]);
 
         if (reviewData.success && productData.status === 'OK') {
-            // Tạo map sản phẩm
+            // Tạo map sản phẩm để lấy thông tin đầy đủ
             const productMap = {};
             (productData.data.products || []).forEach(product => {
                 productMap[product._id] = product;
             });
 
+            console.log('🔍 Product map created:', Object.keys(productMap).length, 'products');
+            console.log('🔍 Sample product:', productData.data.products?.[0]);
+
             // Format reviews data từ API response mới
             let formattedReviews = reviewData.data.reviews.map(review => {
-                // Debug log để kiểm tra dữ liệu user
-                console.log('🔍 Review user data:', review.user);
-                console.log('🔍 User avatar:', review.user?.avatar);
+                const productDetail = productMap[review.product._id];
+
+                console.log('🔍 Review product ID:', review.product._id);
+                console.log('🔍 Found product detail:', productDetail ? 'YES' : 'NO');
+                if (productDetail) {
+                    console.log('🔍 Product image:', productDetail.image);
+                }
 
                 return {
                     ...review,
-                    productDetail: productMap[review.product._id] || null,
                     // Giữ lại các trường cũ cho tương thích UI
                     user_id: {
                         _id: review.user._id,
-                        user_name: review.user.name || review.user.email.split('@')[0],
+                        user_name: review.user.user_name || review.user.email.split('@')[0], // Sử dụng user_name từ API
                         email: review.user.email,
-                        avatar: review.user.avatar || null // Avatar từ API mới
+                        avatar: review.user.avatar || null
                     },
                     product_id: {
                         _id: review.product._id,
-                        name: productMap[review.product._id]?.name || review.product.name || '',
-                        image: productMap[review.product._id]?.image || 'https://via.placeholder.com/60'
+                        name: review.product.name || productDetail?.name || '',
+                        image: productDetail?.image || 'https://via.placeholder.com/60'
                     },
+                    // Thêm thông tin chi tiết sản phẩm
+                    productDetail: productDetail || null,
                     rating: review.rating,
                     comment: review.content,
                     status: review.status,
@@ -182,7 +190,8 @@ function* getAllReviewsSaga(action) {
                 pagination: {
                     page: apiTotal.currentPage,
                     limit: limit,
-                    totalPages: apiTotal.totalPage
+                    totalPages: apiTotal.totalPage,
+                    total: apiTotal.totalReview
                 },
                 total: {
                     currentPage: apiTotal.currentPage,
@@ -209,15 +218,45 @@ function* getReviewDetailsSaga(action) {
     try {
         const { id } = action.payload;
 
-        // Since we don't have a direct get review by ID endpoint,
-        // we'll get all reviews and find the specific one
-        const data = yield call(apiGetAllReviews, 1, 1000); // Lấy nhiều reviews để tìm
+        // Lấy cả review và product data để có thông tin đầy đủ
+        const [reviewData, productData] = yield all([
+            call(apiGetAllReviews, 1, 1000), // Lấy nhiều reviews để tìm
+            call(apiGetAllProducts, 1, 1000) // Lấy products để map
+        ]);
 
-        if (data.success) {
-            const review = data.data.reviews.find(r => r._id === id);
+        if (reviewData.success && productData.status === 'OK') {
+            const review = reviewData.data.reviews.find(r => r._id === id);
 
             if (review) {
-                const formattedReview = formatReviewForDisplay(review);
+                // Tạo map sản phẩm
+                const productMap = {};
+                (productData.data.products || []).forEach(product => {
+                    productMap[product._id] = product;
+                });
+
+                const productDetail = productMap[review.product._id];
+
+                const formattedReview = {
+                    ...review,
+                    user_id: {
+                        _id: review.user._id,
+                        user_name: review.user.user_name || review.user.email.split('@')[0],
+                        email: review.user.email,
+                        avatar: review.user.avatar || null
+                    },
+                    product_id: {
+                        _id: review.product._id,
+                        name: review.product.name || productDetail?.name || '',
+                        image: productDetail?.image || 'https://via.placeholder.com/60'
+                    },
+                    productDetail: productDetail || null,
+                    rating: review.rating,
+                    comment: review.content,
+                    status: review.status,
+                    createdAt: review.createdAt,
+                    updatedAt: review.updatedAt || review.createdAt
+                };
+
                 yield put(getReviewDetailsSuccess({
                     review: formattedReview
                 }));
@@ -225,7 +264,7 @@ function* getReviewDetailsSaga(action) {
                 throw new Error('Không tìm thấy đánh giá');
             }
         } else {
-            throw new Error(data.message || 'Failed to fetch review details');
+            throw new Error(reviewData.message || 'Failed to fetch review details');
         }
     } catch (error) {
         console.error('Get review details error:', error);
@@ -348,7 +387,7 @@ function* getReviewStatsSaga() {
 // Search reviews saga
 function* searchReviewsSaga(action) {
     try {
-        const { keyword, page = 1, limit = 10 } = action.payload;
+        const { keyword, page = 1, limit = 5 } = action.payload;
 
         // Use the getAllReviews saga with search parameter
         yield* getAllReviewsSaga({ payload: { page, limit, search: keyword } });
