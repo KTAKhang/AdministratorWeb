@@ -15,7 +15,8 @@ import {
   Badge,
   Avatar,
   Tooltip,
-  Alert
+  Alert,
+  Spin
 } from "antd";
 import {
   EditOutlined,
@@ -26,7 +27,8 @@ import {
   CheckCircleOutlined,
   StopOutlined,
   MailOutlined,
-  ReloadOutlined
+  ReloadOutlined,
+  SyncOutlined
 } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
@@ -44,60 +46,86 @@ const CustomerManagement = () => {
   const dispatch = useDispatch();
 
   // Redux state
+  const reduxState = useSelector(state => state.user);
   const {
     users,
     loading,
     error,
-    searchText,
-    pagination,
+    searchText: reduxSearchText,
+    pagination: reduxPagination,
     stats: userStats
-  } = useSelector(state => state.user);
+  } = reduxState;
 
-  // Local state for modals
+  // Local state
+  const [searchText, setSearchText] = useState("");
+  const [pagination, setPagination] = useState({
+    current: 1,
+    pageSize: 5,
+    total: 0,
+  });
+
+  // Modal states
   const [isUpdateModalVisible, setIsUpdateModalVisible] = useState(false);
   const [selectedCustomer, setSelectedCustomer] = useState(null);
   const [isViewDetailModalVisible, setIsViewDetailModalVisible] = useState(false);
-  const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
-  // Statistics từ Redux state
-  const stats = userStats;
-
-  // Fetch users từ Redux - chỉ gọi khi cần thiết
-  const fetchUsers = useCallback((page = 1, limit = 10, force = false) => {
-    // Chỉ fetch nếu chưa có data hoặc được ép buộc
-    if (force || !hasInitialLoad || users.length === 0) {
-      dispatch(getAllUsersRequest(page, limit));
+  // Fetch users function
+  const fetchUsers = useCallback((page = 1, pageSize = 5, search = "") => {
+    dispatch(getAllUsersRequest(page, pageSize));
+    if (search !== reduxSearchText) {
+      dispatch(setUserSearchText(search));
     }
-  }, [dispatch, hasInitialLoad, users.length]);
+  }, [dispatch, reduxSearchText]);
 
-  // Handle search với debounce
-  const handleSearch = useCallback(
-    debounce((value) => {
-      dispatch(setUserSearchText(value));
-    }, 500),
-    [dispatch]
-  );
-
-  // Load data khi component mount - chỉ 1 lần
+  // Load initial data
   useEffect(() => {
-    if (!hasInitialLoad) {
-      fetchUsers(pagination.current, pagination.pageSize, true);
-      setHasInitialLoad(true);
-    }
-  }, [fetchUsers, pagination.current, pagination.pageSize, hasInitialLoad]);
-
-  // Reset hasInitialLoad khi component unmount
-  useEffect(() => {
-    return () => {
-      setHasInitialLoad(false);
-    };
+    fetchUsers(1, 5);
   }, []);
 
-  // Refresh data
-  const handleRefresh = () => {
-    fetchUsers(pagination.current, pagination.pageSize, true);
-    dispatch(setUserSearchText(""));
+  // Sync Redux pagination with local state
+  useEffect(() => {
+    if (reduxPagination) {
+      const newPagination = {
+        current: reduxPagination.current || 1,
+        pageSize: reduxPagination.pageSize || 5,
+        total: reduxPagination.total || 0
+      };
+      setPagination(newPagination);
+    }
+  }, [reduxPagination]);
+
+  // Handle search with debounce
+  const handleSearch = useCallback(
+    debounce((value) => {
+      setSearchText(value);
+      setPagination(prev => ({ ...prev, current: 1 }));
+      fetchUsers(1, pagination.pageSize, value);
+    }, 500),
+    [fetchUsers, pagination.pageSize]
+  );
+
+  // Handle table change
+  const handleTableChange = (paginationConfig, filters, sorter) => {
+    const { current, pageSize } = paginationConfig;
+    setPagination(prev => ({
+      ...prev,
+      current: current || 1,
+      pageSize: pageSize || prev.pageSize
+    }));
+    dispatch(setUserPagination({
+      current: current || 1,
+      pageSize: pageSize || pagination.pageSize,
+    }));
+    fetchUsers(current || 1, pageSize || pagination.pageSize, searchText);
   };
+
+  // Handle refresh
+  const handleRefresh = () => {
+    fetchUsers(pagination.current, pagination.pageSize, searchText);
+  };
+
+  // Statistics từ Redux state - now uses API statistics
+  const stats = userStats;
 
   const handleOpenUpdateModal = (customer) => {
     setSelectedCustomer(customer);
@@ -191,7 +219,6 @@ const CustomerManagement = () => {
         />
       )
     },
-
     {
       title: "Hành động",
       key: "action",
@@ -202,16 +229,7 @@ const CustomerManagement = () => {
               type="text"
               icon={<EyeOutlined />}
               onClick={() => handleOpenViewDetailModal(record)}
-              style={{
-                color: '#13C2C2',
-                borderColor: '#13C2C2'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = `#13C2C210`;
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-              }}
+              style={{ color: '#13C2C2' }}
             />
           </Tooltip>
           <Tooltip title="Chỉnh sửa">
@@ -219,16 +237,7 @@ const CustomerManagement = () => {
               type="text"
               icon={<EditOutlined />}
               onClick={() => handleOpenUpdateModal(record)}
-              style={{
-                color: '#0D364C',
-                borderColor: '#0D364C'
-              }}
-              onMouseEnter={(e) => {
-                e.target.style.backgroundColor = `#0D364C10`;
-              }}
-              onMouseLeave={(e) => {
-                e.target.style.backgroundColor = 'transparent';
-              }}
+              style={{ color: '#0D364C' }}
             />
           </Tooltip>
         </Space>
@@ -236,38 +245,44 @@ const CustomerManagement = () => {
     },
   ];
 
+  if (error) {
+    return (
+      <div style={{ padding: '24px' }}>
+        <Alert
+          message="Lỗi tải dữ liệu"
+          description={error}
+          type="error"
+          showIcon
+          action={
+            <Button size="small" onClick={handleRefresh}>
+              Thử lại
+            </Button>
+          }
+        />
+      </div>
+    );
+  }
+
   return (
     <div style={{
       padding: '24px',
       background: `linear-gradient(135deg, #13C2C205 0%, #0D364C05 100%)`,
       minHeight: '100vh'
     }}>
-      {/* Statistics Cards */}
+      {/* Statistics Cards - Now using API statistics */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
         <Col xs={24} sm={8}>
-          <Card
-            style={{
-              borderRadius: '12px',
-              border: `1px solid #13C2C230`,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}
-          >
+          <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Tổng khách hàng</Text>}
-              value={stats.total}
+              value={pagination.total || stats.total}
               prefix={<TeamOutlined style={{ color: '#13C2C2' }} />}
               valueStyle={{ color: '#13C2C2', fontWeight: 'bold' }}
             />
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card
-            style={{
-              borderRadius: '12px',
-              border: `1px solid #13C2C230`,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}
-          >
+          <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Đang hoạt động</Text>}
               value={stats.active}
@@ -277,13 +292,7 @@ const CustomerManagement = () => {
           </Card>
         </Col>
         <Col xs={24} sm={8}>
-          <Card
-            style={{
-              borderRadius: '12px',
-              border: `1px solid #13C2C230`,
-              boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-            }}
-          >
+          <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Đã khóa</Text>}
               value={stats.inactive}
@@ -294,7 +303,7 @@ const CustomerManagement = () => {
         </Col>
       </Row>
 
-      {/* Main Content Card */}
+      {/* Main Content */}
       <Card
         style={{
           borderRadius: '16px',
@@ -303,32 +312,13 @@ const CustomerManagement = () => {
         }}
         title={
           <Space>
-            <Avatar
-              style={{ backgroundColor: '#13C2C2' }}
-              icon={<TeamOutlined />}
-            />
+            <Avatar style={{ backgroundColor: '#13C2C2' }} icon={<TeamOutlined />} />
             <Title level={3} style={{ margin: 0, color: '#0D364C' }}>
               Quản lý Khách hàng
             </Title>
           </Space>
         }
       >
-        {/* Error Alert */}
-        {error && (
-          <Alert
-            message="Lỗi tải dữ liệu"
-            description={error}
-            type="error"
-            closable
-            style={{ marginBottom: '16px' }}
-            action={
-              <Button size="small" danger onClick={handleRefresh}>
-                Thử lại
-              </Button>
-            }
-          />
-        )}
-
         {/* Header Actions */}
         <div style={{
           marginBottom: '24px',
@@ -340,72 +330,51 @@ const CustomerManagement = () => {
         }}>
           <Input.Search
             placeholder="Tìm kiếm khách hàng..."
-            value={searchText}
             onChange={(e) => handleSearch(e.target.value)}
-            style={{
-              width: '320px',
-              maxWidth: '100%'
-            }}
+            style={{ width: '320px', maxWidth: '100%' }}
             size="large"
             prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
             allowClear
             onSearch={(value) => handleSearch(value)}
-            disabled={loading}
           />
-          <Space>
-            <Button
-              icon={<ReloadOutlined />}
-              onClick={handleRefresh}
-              size="large"
-              loading={loading}
-              style={{
-                borderColor: '#13C2C2',
-                color: '#13C2C2',
-                borderRadius: '8px'
-              }}
-            >
-              Làm mới
-            </Button>
-          </Space>
+          <Button
+            onClick={handleRefresh}
+            icon={<SyncOutlined />}
+            loading={loading}
+            style={{ borderColor: '#13C2C2', color: '#13C2C2' }}
+          >
+            Làm mới
+          </Button>
         </div>
 
-        {/* Table - Chỉ sử dụng loading của Table, không wrap thêm Spin */}
-        <Table
-          rowKey="_id"
-          columns={columns}
-          dataSource={users}
-          loading={loading}
-          pagination={{
-            current: pagination.current,
-            pageSize: pagination.pageSize,
-            total: pagination.total,
-            showSizeChanger: true,
-            showQuickJumper: true,
-            showTotal: (total, range) => (
-              <Text style={{ color: '#0D364C' }}>
-                Hiển thị {range[0]}-{range[1]} trong tổng số {total} khách hàng
-              </Text>
-            ),
-            onChange: (page, pageSize) => {
-              dispatch(setUserPagination({
-                current: page,
-                pageSize: pageSize || 10,
-              }));
-              // Fetch new data khi thay đổi pagination
-              fetchUsers(page, pageSize || 10, true);
-            },
-          }}
-          style={{
-            borderRadius: '12px',
-            overflow: 'hidden'
-          }}
-          rowClassName={(record, index) =>
-            index % 2 === 0 ? '' : 'ant-table-row-alternate'
-          }
-          locale={{
-            emptyText: loading ? 'Đang tải...' : 'Không có dữ liệu'
-          }}
-        />
+        {/* Table - Enhanced pagination with new API structure */}
+        <Spin spinning={loading}>
+          <Table
+            rowKey={(record) => record._id}
+            columns={columns}
+            dataSource={users || []}
+            pagination={{
+              current: pagination.current,
+              pageSize: pagination.pageSize,
+              total: pagination.total,
+              showSizeChanger: true,
+              showQuickJumper: true,
+              pageSizeOptions: ['5', '10', '20', '50'],
+              showTotal: (total, range) => (
+                <Text style={{ color: '#0D364C' }}>
+                  Hiển thị {range[0]}-{range[1]} trong tổng số {total} khách hàng
+                </Text>
+              ),
+              onChange: (page, pageSize) => {
+                handleTableChange({ current: page, pageSize }, {}, {});
+              },
+              onShowSizeChange: (current, size) => {
+                handleTableChange({ current, pageSize: size }, {}, {});
+              },
+            }}
+            style={{ borderRadius: '12px', overflow: 'hidden' }}
+          />
+        </Spin>
       </Card>
 
       {/* Modals */}
@@ -425,48 +394,6 @@ const CustomerManagement = () => {
           onClose={handleCloseViewDetailModal}
         />
       )}
-
-      <style>
-        {`
-          .ant-table-row-alternate {
-            background-color: #13C2C205 !important;
-          }
-          
-          .ant-table-thead > tr > th {
-            background-color: #0D364C !important;
-            color: white !important;
-            font-weight: 600 !important;
-            border-bottom: 2px solid #13C2C2 !important;
-          }
-          
-          .ant-table-tbody > tr:hover > td {
-            background-color: #13C2C210 !important;
-          }
-          
-          .ant-pagination-item-active {
-            border-color: #13C2C2 !important;
-            background-color: #13C2C2 !important;
-          }
-          
-          .ant-pagination-item-active a {
-            color: white !important;
-          }
-          
-          .ant-pagination-item:hover {
-            border-color: #13C2C2 !important;
-          }
-          
-          .ant-pagination-item:hover a {
-            color: #13C2C2 !important;
-          }
-          
-          .ant-input:focus,
-          .ant-input-focused {
-            border-color: #13C2C2 !important;
-            box-shadow: 0 0 0 2px #13C2C220 !important;
-          }
-        `}
-      </style>
     </div>
   );
 };

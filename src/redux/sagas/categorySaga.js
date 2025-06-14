@@ -18,7 +18,7 @@ import {
 
 const API_BASE_URL = "https://youtube-fullstack-nodejs-forbeginer.onrender.com/api";
 
-// API function for fetching categories
+// API function for fetching categories with new response structure
 const fetchCategories = async ({ page, limit }) => {
     const response = await axios.get(
         `${API_BASE_URL}/category?page=${page}&limit=${limit}`,
@@ -32,10 +32,13 @@ const fetchCategories = async ({ page, limit }) => {
 };
 
 // API function for creating category
-const createCategory = async ({ name, image, token }) => {
+const createCategory = async ({ name, image, token, status }) => {
     const formData = new FormData();
     formData.append('name', name);
     formData.append('image', image);
+    if (status !== undefined) {
+        formData.append('status', status);
+    }
 
     const response = await axios.post(
         `${API_BASE_URL}/category/create`,
@@ -96,18 +99,41 @@ const deleteCategory = async ({ id, token }) => {
 
 function* handleFetchCategories(action) {
     try {
-        const { page, limit } = action.payload;
-        const data = yield call(fetchCategories, { page, limit });
-        yield put(fetchCategorySuccess(data));
+        const { page = 1, limit = 12 } = action.payload;
+        const response = yield call(fetchCategories, { page, limit });
+
+        // Handle new API response structure
+        const processedData = {
+            status: response.status,
+            message: response.message,
+            data: {
+                categories: response.data.categories || [],
+                total: {
+                    currentPage: response.data.total?.currentPage || page,
+                    totalCategory: response.data.total?.totalCategory || 0,
+                    totalPage: response.data.total?.totalPage || 1,
+                    totalActive: response.data.total?.totalActive || 0,
+                    totalInactive: response.data.total?.totalInactive || 0,
+                }
+            },
+            pagination: {
+                page: response.pagination?.page || page,
+                limit: response.pagination?.limit || limit,
+                totalPages: response.data.total?.totalPage || 1,
+            }
+        };
+
+        yield put(fetchCategorySuccess(processedData));
     } catch (error) {
-        yield put(fetchCategoryFailure(error.message));
+        const errorMessage = error.response?.data?.message || error.message;
+        yield put(fetchCategoryFailure(errorMessage));
     }
 }
 
 function* handleCreateCategory(action) {
     try {
-        const { name, image, token } = action.payload;
-        const data = yield call(createCategory, { name, image, token });
+        const { name, image, token, status } = action.payload;
+        const data = yield call(createCategory, { name, image, token, status });
         yield put(createCategorySuccess(data));
     } catch (error) {
         const errorMessage = error.response?.data?.message || error.message;

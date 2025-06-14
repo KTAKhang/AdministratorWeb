@@ -164,6 +164,40 @@ const ViewProductDetail = ({ visible, productData, onClose }) => {
               <div className="info-item">
                 <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
                   <TagOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                  Danh mục sản phẩm
+                </Text>
+                <div style={{ marginTop: '8px' }}>
+                  <Text style={{
+                    display: 'block',
+                    color: '#0D364C',
+                    fontSize: '14px',
+                    marginBottom: '4px'
+                  }}>
+                    {productData.categoryDetail?.name || productData.category_name || 'N/A'}
+                  </Text>
+                  {productData.categoryDetail && (
+                    <div>
+                      <Tag
+                        color={productData.categoryDetail.status ? '#52c41a' : '#ff4d4f'}
+                        style={{ fontSize: '12px', marginBottom: '4px' }}
+                      >
+                        {productData.categoryDetail.status ? 'Danh mục đang hoạt động' : 'Danh mục ngừng hoạt động'}
+                      </Tag>
+                      <Text style={{
+                        display: 'block',
+                        color: '#666',
+                        fontSize: '12px'
+                      }}>
+                        ID danh mục: {productData.categoryDetail._id}
+                      </Text>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="info-item">
+                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                  <TagOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                   ID Sản phẩm
                 </Text>
                 <div style={{ marginTop: '8px' }}>

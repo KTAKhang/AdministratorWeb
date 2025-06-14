@@ -26,9 +26,14 @@ const initialState = {
     deleteError: null,
     pagination: {
         page: 1,
-        limit: 10,
+        limit: 12,
         totalPages: 1,
         totalProduct: 0,
+    },
+    statistics: {
+        totalActive: 0,
+        totalInactive: 0,
+        currentPage: 1,
     },
 };
 
@@ -46,10 +51,15 @@ const productReducer = (state = initialState, action) => {
                 loading: false,
                 products: action.payload.data.products || [],
                 pagination: {
-                    page: action.payload.data.total?.currentPage || 1,
-                    limit: state.pagination.limit,
-                    totalPages: action.payload.data.total?.totalPage || 1,
+                    page: action.payload.pagination?.page || action.payload.data.total?.currentPage || 1,
+                    limit: action.payload.pagination?.limit || 12,
+                    totalPages: action.payload.pagination?.totalPages || action.payload.data.total?.totalPage || 1,
                     totalProduct: action.payload.data.total?.totalProduct || 0,
+                },
+                statistics: {
+                    totalActive: action.payload.data.total?.totalActive || 0,
+                    totalInactive: action.payload.data.total?.totalInactive || 0,
+                    currentPage: action.payload.data.total?.currentPage || 1,
                 },
             };
         case FETCH_PRODUCT_FAILURE:
@@ -67,13 +77,19 @@ const productReducer = (state = initialState, action) => {
                 createError: null,
             };
         case CREATE_PRODUCT_SUCCESS:
+            const newProduct = action.payload.data;
             return {
                 ...state,
                 createLoading: false,
-                products: [action.payload.data, ...state.products],
+                products: [newProduct, ...state.products],
                 pagination: {
                     ...state.pagination,
                     totalProduct: state.pagination.totalProduct + 1,
+                },
+                statistics: {
+                    ...state.statistics,
+                    totalActive: newProduct.status ? state.statistics.totalActive + 1 : state.statistics.totalActive,
+                    totalInactive: !newProduct.status ? state.statistics.totalInactive + 1 : state.statistics.totalInactive,
                 },
             };
         case CREATE_PRODUCT_FAILURE:
@@ -91,14 +107,24 @@ const productReducer = (state = initialState, action) => {
                 updateError: null,
             };
         case UPDATE_PRODUCT_SUCCESS:
+            const updatedProduct = action.payload.data;
+            const oldProduct = state.products.find(prod => prod._id === updatedProduct._id);
+
             return {
                 ...state,
                 updateLoading: false,
                 products: state.products.map(product =>
-                    product._id === action.payload.data._id
-                        ? action.payload.data
-                        : product
+                    product._id === updatedProduct._id ? updatedProduct : product
                 ),
+                statistics: {
+                    ...state.statistics,
+                    totalActive: oldProduct && oldProduct.status !== updatedProduct.status
+                        ? (updatedProduct.status ? state.statistics.totalActive + 1 : state.statistics.totalActive - 1)
+                        : state.statistics.totalActive,
+                    totalInactive: oldProduct && oldProduct.status !== updatedProduct.status
+                        ? (!updatedProduct.status ? state.statistics.totalInactive + 1 : state.statistics.totalInactive - 1)
+                        : state.statistics.totalInactive,
+                },
             };
         case UPDATE_PRODUCT_FAILURE:
             return {
@@ -115,6 +141,7 @@ const productReducer = (state = initialState, action) => {
                 deleteError: null,
             };
         case DELETE_PRODUCT_SUCCESS:
+            const deletedProduct = state.products.find(prod => prod._id === action.payload);
             return {
                 ...state,
                 deleteLoading: false,
@@ -122,6 +149,11 @@ const productReducer = (state = initialState, action) => {
                 pagination: {
                     ...state.pagination,
                     totalProduct: state.pagination.totalProduct - 1,
+                },
+                statistics: {
+                    ...state.statistics,
+                    totalActive: deletedProduct && deletedProduct.status ? state.statistics.totalActive - 1 : state.statistics.totalActive,
+                    totalInactive: deletedProduct && !deletedProduct.status ? state.statistics.totalInactive - 1 : state.statistics.totalInactive,
                 },
             };
         case DELETE_PRODUCT_FAILURE:

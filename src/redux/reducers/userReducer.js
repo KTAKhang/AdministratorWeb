@@ -41,15 +41,22 @@ const initialState = {
         totalPages: 0,
     },
 
-    // Statistics
+    // Statistics - use API statistics when available, fallback to client-side calculation
     stats: {
         total: 0,
         active: 0,
         inactive: 0,
     },
+
+    // API statistics from server
+    apiStatistics: {
+        totalActive: 0,
+        totalInactive: 0,
+        currentPage: 1,
+    },
 };
 
-// Helper function to calculate stats
+// Helper function to calculate stats from client data (fallback)
 const calculateStats = (users) => ({
     total: users.length,
     active: users.filter(user => user.status).length,
@@ -78,8 +85,18 @@ const userReducer = (state = initialState, action) => {
             };
 
         case GET_ALL_USERS_SUCCESS:
-            const { users, pagination } = action.payload;
+            const { data, pagination } = action.payload;
+            const users = data.users || [];
             const filteredUsers = filterUsers(users, state.searchText);
+
+            // Use API statistics when available, fallback to client-side calculation
+            const apiStats = data.total || {};
+            const clientStats = calculateStats(users);
+            const finalStats = {
+                total: apiStats.totalActive + apiStats.totalInactive || clientStats.total,
+                active: apiStats.totalActive || clientStats.active,
+                inactive: apiStats.totalInactive || clientStats.inactive,
+            };
 
             return {
                 ...state,
@@ -89,12 +106,17 @@ const userReducer = (state = initialState, action) => {
                 loading: false,
                 error: null,
                 pagination: {
-                    current: pagination.currentPage || state.pagination.current,
-                    pageSize: pagination.limit || state.pagination.pageSize,
-                    total: pagination.totalUsers || 0,
-                    totalPages: pagination.totalPages || 0,
+                    current: pagination?.page || apiStats.currentPage || state.pagination.current,
+                    pageSize: pagination?.limit || state.pagination.pageSize,
+                    total: apiStats.totalUser || 0,
+                    totalPages: pagination?.totalPages || apiStats.totalPage || 0,
                 },
-                stats: calculateStats(users),
+                stats: finalStats,
+                apiStatistics: {
+                    totalActive: apiStats.totalActive || 0,
+                    totalInactive: apiStats.totalInactive || 0,
+                    currentPage: apiStats.currentPage || 1,
+                },
             };
 
         case GET_ALL_USERS_FAILURE:
@@ -106,6 +128,11 @@ const userReducer = (state = initialState, action) => {
                 loading: false,
                 error: action.payload,
                 stats: calculateStats([]),
+                apiStatistics: {
+                    totalActive: 0,
+                    totalInactive: 0,
+                    currentPage: 1,
+                },
             };
 
         case GET_USER_BY_ID_REQUEST:
@@ -145,6 +172,22 @@ const userReducer = (state = initialState, action) => {
             );
             const updatedFilteredUsers = filterUsers(updatedUsers, state.searchText);
 
+            // Update statistics when user is updated
+            const oldUser = state.allUsers.find(user => user._id === updatedUser._id);
+            let newApiStats = { ...state.apiStatistics };
+
+            if (oldUser && oldUser.status !== updatedUser.status) {
+                if (updatedUser.status) {
+                    // User was activated
+                    newApiStats.totalActive = state.apiStatistics.totalActive + 1;
+                    newApiStats.totalInactive = state.apiStatistics.totalInactive - 1;
+                } else {
+                    // User was deactivated
+                    newApiStats.totalActive = state.apiStatistics.totalActive - 1;
+                    newApiStats.totalInactive = state.apiStatistics.totalInactive + 1;
+                }
+            }
+
             return {
                 ...state,
                 allUsers: updatedUsers,
@@ -153,7 +196,12 @@ const userReducer = (state = initialState, action) => {
                 userDetail: updatedUser, // Update detail if viewing the same user
                 updateLoading: false,
                 updateError: null,
-                stats: calculateStats(updatedUsers),
+                stats: {
+                    total: newApiStats.totalActive + newApiStats.totalInactive,
+                    active: newApiStats.totalActive,
+                    inactive: newApiStats.totalInactive,
+                },
+                apiStatistics: newApiStats,
             };
 
         case UPDATE_USER_FAILURE:

@@ -105,7 +105,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
 
       // Dispatch create action with success callback
       dispatch(createProductRequest(formData, () => {
-        message.success('Thêm sản phẩm thành công!');
+
         form.resetFields();
         setFileList([]);
         setSwitchValue(true);

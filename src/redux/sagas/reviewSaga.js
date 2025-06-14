@@ -1,4 +1,4 @@
-import { call, put, takeEvery, takeLatest } from 'redux-saga/effects';
+import { call, put, takeEvery, takeLatest, all } from 'redux-saga/effects';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
@@ -32,11 +32,11 @@ const getAuthHeaders = () => {
     };
 };
 
-// API call to get all reviews
-const apiGetAllReviews = async () => {
+// API call to get all reviews with pagination
+const apiGetAllReviews = async (page = 1, limit = 10) => {
     try {
         const response = await axios.get(
-            `${API_BASE_URL}/product-review/all`,
+            `${API_BASE_URL}/product-review/all?page=${page}&limit=${limit}`,
             {
                 headers: getAuthHeaders()
             }
@@ -81,6 +81,21 @@ const apiUpdateReview = async (reviewId, updateData) => {
     }
 };
 
+// API call to get all products (dùng lại logic từ productSaga)
+const apiGetAllProducts = async (page = 1, limit = 100) => {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(
+        `${API_BASE_URL}/product`,
+        {
+            params: { page, limit },
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        }
+    );
+    return response.data;
+};
+
 // Helper function to format review data for display
 const formatReviewForDisplay = (review) => ({
     _id: review._id,
@@ -106,11 +121,47 @@ function* getAllReviewsSaga(action) {
     try {
         const { page = 1, limit = 10, search = '' } = action.payload || {};
 
-        const data = yield call(apiGetAllReviews);
+        // Lấy cả review và product song song
+        const [reviewData, productData] = yield all([
+            call(apiGetAllReviews, page, limit),
+            call(apiGetAllProducts, 1, 1000) // lấy tối đa 1000 sản phẩm, có thể phân trang nếu cần
+        ]);
 
-        if (data.success) {
-            // Format reviews data
-            let formattedReviews = data.data.map(review => formatReviewForDisplay(review));
+        if (reviewData.success && productData.status === 'OK') {
+            // Tạo map sản phẩm
+            const productMap = {};
+            (productData.data.products || []).forEach(product => {
+                productMap[product._id] = product;
+            });
+
+            // Format reviews data từ API response mới
+            let formattedReviews = reviewData.data.reviews.map(review => {
+                // Debug log để kiểm tra dữ liệu user
+                console.log('🔍 Review user data:', review.user);
+                console.log('🔍 User avatar:', review.user?.avatar);
+
+                return {
+                    ...review,
+                    productDetail: productMap[review.product._id] || null,
+                    // Giữ lại các trường cũ cho tương thích UI
+                    user_id: {
+                        _id: review.user._id,
+                        user_name: review.user.name || review.user.email.split('@')[0],
+                        email: review.user.email,
+                        avatar: review.user.avatar || null // Avatar từ API mới
+                    },
+                    product_id: {
+                        _id: review.product._id,
+                        name: productMap[review.product._id]?.name || review.product.name || '',
+                        image: productMap[review.product._id]?.image || 'https://via.placeholder.com/60'
+                    },
+                    rating: review.rating,
+                    comment: review.content,
+                    status: review.status,
+                    createdAt: review.createdAt,
+                    updatedAt: review.updatedAt || review.createdAt
+                };
+            });
 
             // Client-side search filtering if search term provided
             if (search) {
@@ -123,31 +174,26 @@ function* getAllReviewsSaga(action) {
                 );
             }
 
-            // Client-side pagination
-            const startIndex = (page - 1) * limit;
-            const endIndex = startIndex + limit;
-            const paginatedReviews = formattedReviews.slice(startIndex, endIndex);
-
-            const totalReviews = formattedReviews.length;
-            const totalPages = Math.ceil(totalReviews / limit);
+            // Sử dụng pagination data từ API
+            const apiTotal = reviewData.data.total;
 
             yield put(getAllReviewsSuccess({
-                reviews: paginatedReviews,
+                reviews: formattedReviews,
                 pagination: {
-                    page: page,
+                    page: apiTotal.currentPage,
                     limit: limit,
-                    totalPages: totalPages
+                    totalPages: apiTotal.totalPage
                 },
                 total: {
-                    currentPage: page,
-                    totalReview: totalReviews,
-                    totalPage: totalPages
+                    currentPage: apiTotal.currentPage,
+                    totalReview: apiTotal.totalReview,
+                    totalPage: apiTotal.totalPage,
+                    totalApproved: apiTotal.totalApproved,
+                    totalPending: apiTotal.totalPending
                 }
             }));
-
-            // Removed toast success for routine data fetching
         } else {
-            throw new Error(data.message || 'Failed to fetch reviews');
+            throw new Error(reviewData.message || 'Failed to fetch reviews');
         }
     } catch (error) {
         console.error('Get all reviews error:', error);
@@ -165,10 +211,10 @@ function* getReviewDetailsSaga(action) {
 
         // Since we don't have a direct get review by ID endpoint,
         // we'll get all reviews and find the specific one
-        const data = yield call(apiGetAllReviews);
+        const data = yield call(apiGetAllReviews, 1, 1000); // Lấy nhiều reviews để tìm
 
         if (data.success) {
-            const review = data.data.find(r => r._id === id);
+            const review = data.data.reviews.find(r => r._id === id);
 
             if (review) {
                 const formattedReview = formatReviewForDisplay(review);
@@ -259,16 +305,21 @@ function* deleteReviewSaga(action) {
 // Get review statistics saga
 function* getReviewStatsSaga() {
     try {
-        const data = yield call(apiGetAllReviews);
+        // Lấy tất cả reviews để tính thống kê (có thể cần lấy nhiều trang)
+        const data = yield call(apiGetAllReviews, 1, 1000); // Lấy tối đa 1000 reviews
 
         if (data.success) {
-            const reviews = data.data;
+            const reviews = data.data.reviews;
+            const apiTotal = data.data.total;
 
-            // Calculate statistics
+            // Sử dụng thống kê từ API nếu có, nếu không thì tính toán
             const stats = {
-                total: reviews.length,
-                approved: reviews.filter(r => r.status === true).length,
-                pending: reviews.filter(r => r.status === false).length,
+                totalReview: apiTotal.totalReview,
+                totalApproved: apiTotal.totalApproved,
+                totalPending: apiTotal.totalPending,
+                total: apiTotal.totalReview,
+                approved: apiTotal.totalApproved,
+                pending: apiTotal.totalPending,
                 averageRating: reviews.length > 0
                     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
                     : 0,

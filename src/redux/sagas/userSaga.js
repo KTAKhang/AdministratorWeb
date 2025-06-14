@@ -36,8 +36,8 @@ const createHeaders = (isFormData = false) => {
     return headers;
 };
 
-// API call to get all users
-const apiGetAllUsers = async (page, limit) => {
+// API call to get all users with new response structure
+const apiGetAllUsers = async (page = 1, limit = 10) => {
     try {
         const response = await axios.get(
             `${API_BASE_URL}/user/get-all?page=${page}&limit=${limit}`,
@@ -124,38 +124,49 @@ const formatUserForDisplay = (user) => ({
     updatedAt: user.updatedAt
 });
 
-// Saga to handle get all users
+// Saga to handle get all users with new API structure
 function* handleGetAllUsers(action) {
     try {
-        const { page, limit } = action.payload;
-        const data = yield call(apiGetAllUsers, page, limit);
+        const { page = 1, limit = 10 } = action.payload;
+        const response = yield call(apiGetAllUsers, page, limit);
 
-        if (data.status === 'OK') {
-            // Format users data
-            const formattedUsers = data.data.user.map(user => formatUserForDisplay(user));
+        if (response.status === 'OK') {
+            // Format users data from new API structure
+            const formattedUsers = response.data.user.map(user => formatUserForDisplay(user));
 
-            // Prepare pagination data
-            const pagination = {
-                currentPage: data.data.total?.currentPage || page,
-                totalUsers: data.data.total?.totalUser || 0,
-                totalPages: data.data.total?.totalPage || 0,
-                limit: limit
+            // Handle new API response structure
+            const processedData = {
+                status: response.status,
+                message: response.message,
+                data: {
+                    users: formattedUsers,
+                    total: {
+                        currentPage: response.data.total?.currentPage || page,
+                        totalUser: response.data.total?.totalUser || 0,
+                        totalPage: response.data.total?.totalPage || 1,
+                        totalActive: response.data.total?.totalActive || 0,
+                        totalInactive: response.data.total?.totalInactive || 0,
+                    }
+                },
+                pagination: {
+                    page: response.pagination?.page || page,
+                    limit: response.pagination?.limit || limit,
+                    totalPages: response.data.total?.totalPage || 1,
+                }
             };
 
-            yield put(getAllUsersSuccess({
-                users: formattedUsers,
-                pagination: pagination
-            }));
+            yield put(getAllUsersSuccess(processedData));
 
             // Không hiển thị toast success cho việc fetch data thông thường
             // toast.success(data.message || 'Tải dữ liệu thành công');
         } else {
-            throw new Error(data.message || 'Failed to fetch users');
+            throw new Error(response.message || 'Failed to fetch users');
         }
     } catch (error) {
         console.error('Error fetching users:', error);
-        yield put(getAllUsersFailure(error.message));
-        toast.error('Có lỗi xảy ra khi tải dữ liệu: ' + error.message);
+        const errorMessage = error.response?.data?.message || error.message;
+        yield put(getAllUsersFailure(errorMessage));
+        toast.error('Có lỗi xảy ra khi tải dữ liệu: ' + errorMessage);
     }
 }
 

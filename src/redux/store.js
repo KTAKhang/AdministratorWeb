@@ -7,7 +7,8 @@ import orderReducer from "./reducers/orderReducer";
 import productReducer from "./reducers/productReducer";
 import reviewReducer from "./reducers/reviewReducer";
 import userReducer from "./reducers/userReducer";
-import profileReducer from "./reducers/profileReducer"; 
+import profileReducer from "./reducers/profileReducer";
+import rootSaga from "./sagas/rootSaga";
 const rootReducer = combineReducers({
   auth: authReducer,
   category: categoryReducer,

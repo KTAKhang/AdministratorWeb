@@ -117,25 +117,81 @@ const UpdateReviewStatus = ({ visible, reviewData, onClose, onSuccess }) => {
                             borderRadius: '8px',
                             border: '1px solid #e5e7eb'
                         }}>
-                            <Text strong style={{ color: '#0D364C', display: 'block', marginBottom: '8px' }}>
-                                Thông tin review:
+                            <Text strong style={{ color: '#0D364C', display: 'block', marginBottom: '12px' }}>
+                                Thông tin review chi tiết:
                             </Text>
-                            <Text style={{ display: 'block', color: '#666', marginBottom: '4px' }}>
-                                Sản phẩm: {reviewData.product_id.name}
-                            </Text>
-                            <Text style={{ display: 'block', color: '#666', marginBottom: '8px' }}>
-                                Đánh giá: {reviewData.rating}/5 ⭐
-                            </Text>
-                            <Text style={{
-                                color: '#666',
-                                fontStyle: 'italic',
-                                backgroundColor: '#fff',
-                                padding: '8px',
-                                borderRadius: '4px',
-                                border: '1px solid #e5e7eb'
-                            }}>
-                                "{reviewData.comment}"
-                            </Text>
+
+                            {/* Thông tin khách hàng */}
+                            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#fff', borderRadius: '6px' }}>
+                                <Text strong style={{ color: '#0D364C', fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                                    👤 Khách hàng:
+                                </Text>
+                                <Text style={{ display: 'block', color: '#666', marginBottom: '2px' }}>
+                                    Tên: {reviewData.user_id?.user_name || 'N/A'}
+                                </Text>
+                                <Text style={{ display: 'block', color: '#666', fontSize: '12px' }}>
+                                    Email: {reviewData.user_id?.email || 'N/A'}
+                                </Text>
+                            </div>
+
+                            {/* Thông tin sản phẩm */}
+                            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#fff', borderRadius: '6px' }}>
+                                <Text strong style={{ color: '#0D364C', fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                                    🛍️ Sản phẩm:
+                                </Text>
+                                <Text style={{ display: 'block', color: '#666', marginBottom: '2px' }}>
+                                    Tên: {reviewData.productDetail?.name || reviewData.product_id?.name || 'N/A'}
+                                </Text>
+                                {reviewData.productDetail?.price !== undefined && (
+                                    <Text style={{ display: 'block', color: '#666', marginBottom: '2px' }}>
+                                        Giá: {reviewData.productDetail.price.toLocaleString()}₫
+                                    </Text>
+                                )}
+                                {reviewData.productDetail?.category_name && (
+                                    <Text style={{ display: 'block', color: '#666', marginBottom: '2px' }}>
+                                        Danh mục: {reviewData.productDetail.category_name}
+                                    </Text>
+                                )}
+                                {reviewData.productDetail?.factory && (
+                                    <Text style={{ display: 'block', color: '#666', fontSize: '12px' }}>
+                                        Nhà sản xuất: {reviewData.productDetail.factory}
+                                    </Text>
+                                )}
+                            </div>
+
+                            {/* Đánh giá */}
+                            <div style={{ marginBottom: '12px', padding: '8px', backgroundColor: '#fff', borderRadius: '6px' }}>
+                                <Text strong style={{ color: '#0D364C', fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                                    ⭐ Đánh giá: {reviewData.rating}/5 sao
+                                </Text>
+                                <Text style={{
+                                    color: '#666',
+                                    fontStyle: 'italic',
+                                    backgroundColor: '#f9f9f9',
+                                    padding: '6px',
+                                    borderRadius: '4px',
+                                    border: '1px solid #e5e7eb',
+                                    display: 'block',
+                                    fontSize: '13px'
+                                }}>
+                                    "{reviewData.comment}"
+                                </Text>
+                            </div>
+
+                            {/* Thời gian */}
+                            <div style={{ padding: '8px', backgroundColor: '#fff', borderRadius: '6px' }}>
+                                <Text strong style={{ color: '#0D364C', fontSize: '13px', display: 'block', marginBottom: '6px' }}>
+                                    📅 Thời gian:
+                                </Text>
+                                <Text style={{ display: 'block', color: '#666', fontSize: '12px', marginBottom: '2px' }}>
+                                    Tạo: {new Date(reviewData.createdAt).toLocaleString('vi-VN')}
+                                </Text>
+                                {reviewData.updatedAt && reviewData.updatedAt !== reviewData.createdAt && (
+                                    <Text style={{ display: 'block', color: '#666', fontSize: '12px' }}>
+                                        Cập nhật: {new Date(reviewData.updatedAt).toLocaleString('vi-VN')}
+                                    </Text>
+                                )}
+                            </div>
                         </div>
                     )}
 

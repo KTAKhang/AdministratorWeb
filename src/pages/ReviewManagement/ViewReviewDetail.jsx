@@ -169,22 +169,67 @@ const ViewReviewDetail = ({ visible, reviewData, onClose }) => {
 
                             <div className="info-item">
                                 <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
+                                    <UserOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
+                                    Thông tin khách hàng
+                                </Text>
+                                <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                    <Avatar
+                                        src={reviewData.user_id?.avatar}
+                                        size={60}
+                                        icon={<UserOutlined />}
+                                        style={{
+                                            backgroundColor: reviewData.user_id?.avatar ? 'transparent' : '#52c41a',
+                                            border: '2px solid #f0f0f0'
+                                        }}
+                                        onError={() => false}
+                                    />
+                                    <div>
+                                        <Text style={{ display: 'block', color: '#0D364C', fontSize: '16px', fontWeight: '500' }}>
+                                            {reviewData.user_id?.user_name || 'N/A'}
+                                        </Text>
+                                        <Text type="secondary" style={{ display: 'block' }}>
+                                            Email: {reviewData.user_id?.email || 'N/A'}
+                                        </Text>
+                                        <Text type="secondary">
+                                            ID: {reviewData.user_id?._id || 'N/A'}
+                                        </Text>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div className="info-item">
+                                <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
                                     <ShoppingOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
                                     Sản phẩm được đánh giá
                                 </Text>
                                 <div style={{ marginTop: '12px', display: 'flex', alignItems: 'center', gap: '12px' }}>
                                     <Avatar
-                                        src={reviewData.product_id.image}
+                                        src={reviewData.productDetail?.image || reviewData.product_id?.image}
                                         size={60}
                                         icon={<ShoppingOutlined />}
                                         style={{ backgroundColor: '#13C2C2' }}
                                     />
                                     <div>
                                         <Text style={{ display: 'block', color: '#0D364C', fontSize: '16px', fontWeight: '500' }}>
-                                            {reviewData.product_id.name}
+                                            {reviewData.productDetail?.name || reviewData.product_id?.name || 'N/A'}
                                         </Text>
-                                        <Text type="secondary">
-                                            ID: {reviewData.product_id._id}
+                                        {reviewData.productDetail?.price !== undefined && (
+                                            <Text style={{ display: 'block', color: '#666', fontSize: '14px' }}>
+                                                Giá: {reviewData.productDetail.price.toLocaleString()}₫
+                                            </Text>
+                                        )}
+                                        {reviewData.productDetail?.category_name && (
+                                            <Text style={{ display: 'block', color: '#666', fontSize: '13px' }}>
+                                                Danh mục: {reviewData.productDetail.category_name}
+                                            </Text>
+                                        )}
+                                        {reviewData.productDetail?.factory && (
+                                            <Text style={{ display: 'block', color: '#666', fontSize: '13px' }}>
+                                                Nhà sản xuất: {reviewData.productDetail.factory}
+                                            </Text>
+                                        )}
+                                        <Text type="secondary" style={{ fontSize: '12px' }}>
+                                            ID: {reviewData.product_id?._id || 'N/A'}
                                         </Text>
                                     </div>
                                 </div>
@@ -247,15 +292,26 @@ const ViewReviewDetail = ({ visible, reviewData, onClose }) => {
                             <div className="info-item">
                                 <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
                                     <CalendarOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                                    Thời gian đánh giá
+                                    Thời gian
                                 </Text>
-                                <Text style={{
-                                    display: 'block',
-                                    color: '#0D364C',
-                                    marginTop: '8px'
-                                }}>
-                                    {formatDate(reviewData.createdAt)}
-                                </Text>
+                                <div style={{ marginTop: '8px' }}>
+                                    <Text style={{
+                                        display: 'block',
+                                        color: '#0D364C',
+                                        marginBottom: '4px'
+                                    }}>
+                                        Tạo: {formatDate(reviewData.createdAt)}
+                                    </Text>
+                                    {reviewData.updatedAt && reviewData.updatedAt !== reviewData.createdAt && (
+                                        <Text style={{
+                                            display: 'block',
+                                            color: '#666',
+                                            fontSize: '13px'
+                                        }}>
+                                            Cập nhật: {formatDate(reviewData.updatedAt)}
+                                        </Text>
+                                    )}
+                                </div>
                             </div>
                         </Space>
                     </Space>

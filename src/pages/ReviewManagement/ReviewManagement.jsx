@@ -133,7 +133,12 @@ const ReviewManagement = () => {
     );
 
     // Calculate statistics from API or fallback to local calculation
-    const stats = apiStats?.total ? apiStats : {
+    const stats = apiStats?.totalReview !== undefined ? {
+        total: apiStats.totalReview,
+        approved: apiStats.totalApproved || 0,
+        pending: apiStats.totalPending || 0,
+        averageRating: filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + r.rating, 0) / filteredReviews.length).toFixed(1) : 0,
+    } : {
         total: filteredReviews.length,
         approved: filteredReviews.filter(r => r.status).length,
         pending: filteredReviews.filter(r => !r.status).length,
@@ -178,6 +183,7 @@ const ReviewManagement = () => {
         if (total?.totalReview !== undefined) {
             setPagination(prev => ({
                 ...prev,
+                current: total.currentPage || 1,
                 total: total.totalReview
             }));
         }
@@ -248,18 +254,55 @@ const ReviewManagement = () => {
 
     const columns = [
         {
+            title: "Khách hàng",
+            key: "customer",
+            render: (_, record) => (
+                <Space>
+                    <Avatar
+                        src={record.user_id?.avatar}
+                        icon={<UserOutlined />}
+                        style={{
+                            backgroundColor: record.user_id?.avatar ? 'transparent' : '#52c41a',
+                            border: '2px solid #f0f0f0'
+                        }}
+                        onError={() => false}
+                    />
+                    <div>
+                        <Text strong style={{ color: '#0D364C' }}>
+                            {record.user_id?.user_name || 'N/A'}
+                        </Text>
+                        <div style={{ fontSize: '12px', color: '#888' }}>
+                            {record.user_id?.email || 'N/A'}
+                        </div>
+                    </div>
+                </Space>
+            ),
+        },
+        {
             title: "Sản phẩm",
             key: "product",
             render: (_, record) => (
                 <Space>
                     <Avatar
-                        src={record.product_id?.image}
+                        src={record.productDetail?.image || record.product_id?.image}
                         icon={<ShoppingOutlined />}
                         style={{ backgroundColor: '#13C2C2' }}
                     />
-                    <Text strong style={{ color: '#0D364C' }}>
-                        {record.product_id?.name || 'N/A'}
-                    </Text>
+                    <div>
+                        <Text strong style={{ color: '#0D364C' }}>
+                            {record.productDetail?.name || record.product_id?.name || 'N/A'}
+                        </Text>
+                        {record.productDetail?.price !== undefined && (
+                            <div style={{ fontSize: '13px', color: '#888' }}>
+                                Giá: {record.productDetail.price.toLocaleString()}₫
+                            </div>
+                        )}
+                        {record.productDetail?.category_name && (
+                            <div style={{ fontSize: '12px', color: '#aaa' }}>
+                                Danh mục: {record.productDetail.category_name}
+                            </div>
+                        )}
+                    </div>
                 </Space>
             ),
         },

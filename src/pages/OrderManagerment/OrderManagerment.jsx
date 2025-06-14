@@ -355,7 +355,7 @@ const OrderManagement = () => {
 
       {/* Statistics Cards */}
       <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={8}>
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Tổng đơn hàng</Text>}
@@ -365,7 +365,7 @@ const OrderManagement = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={8}>
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Chờ xử lý</Text>}
@@ -375,24 +375,13 @@ const OrderManagement = () => {
             />
           </Card>
         </Col>
-        <Col xs={24} sm={6}>
+        <Col xs={24} sm={8}>
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Đang xử lý</Text>}
               value={stats.processing}
               prefix={<SyncOutlined style={{ color: '#13C2C2' }} />}
               valueStyle={{ color: '#13C2C2', fontWeight: 'bold' }}
-            />
-          </Card>
-        </Col>
-        <Col xs={24} sm={6}>
-          <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
-            <Statistic
-              title={<Text style={{ color: '#0D364C' }}>Tổng doanh thu</Text>}
-              value={stats.totalValue}
-              prefix={<DollarOutlined style={{ color: '#52c41a' }} />}
-              valueStyle={{ color: '#52c41a', fontWeight: 'bold' }}
-              formatter={(value) => `${value?.toLocaleString('vi-VN')} VNĐ`}
             />
           </Card>
         </Col>

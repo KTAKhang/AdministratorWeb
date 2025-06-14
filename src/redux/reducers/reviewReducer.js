@@ -109,7 +109,7 @@ const reviewReducer = (state = initialState, action) => {
             return {
                 ...state,
                 updateLoading: false,
-                message: 'Cập nhật trạng thái thành công',
+
                 error: '',
                 reviews: state.reviews.map(review =>
                     review._id === action.payload.reviewId
