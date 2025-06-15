@@ -1,5 +1,6 @@
 import AuthenticatedRoute from "../components/AuthenticatedRoute/index";
 import HomePage from "../pages/HomePage";
+import ForgotPassword from "../pages/ForgotPassword";
 import NotFoundPage from "../pages/NotFoundPage";
 import AdminLayout from "../layout/AdminLayout";
 import AdminPage from "../pages/AdminPage";
@@ -17,6 +18,12 @@ export const routes = [
   {
     path: "/",
     element: <HomePage />, // login page
+  },
+
+  // Trang quên mật khẩu
+  {
+    path: "/forgot-password",
+    element: <ForgotPassword />,
   },
 
   // Các route dành cho admin (cần xác thực + vai trò)

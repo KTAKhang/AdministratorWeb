@@ -56,7 +56,12 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
   const activeCategories = categories.filter(cat => cat.status);
 
   // Helper function to extract category ID
-  const extractCategoryId = (categoryData) => {
+  const extractCategoryId = (categoryData, productData) => {
+    // Ưu tiên lấy từ categoryDetail nếu có
+    if (productData?.categoryDetail?._id) {
+      return productData.categoryDetail._id;
+    }
+
     if (!categoryData) return null;
 
     if (typeof categoryData === 'object' && categoryData._id) {
@@ -71,7 +76,7 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
   // Set form values when modal opens and productData is available
   useEffect(() => {
     if (visible && productData) {
-      const categoryId = extractCategoryId(productData.category_id);
+      const categoryId = extractCategoryId(productData.category_id, productData);
 
       const currentStatus = productData.status !== undefined ? productData.status : true;
 
@@ -90,6 +95,8 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
       console.log('🔍 ProductData status:', productData.status);
       console.log('🔍 Current status value:', currentStatus);
       console.log('🔍 Available categories:', categories.length);
+      console.log('🔍 CategoryDetail:', productData.categoryDetail);
+      console.log('🔍 Extracted category ID:', categoryId);
 
       form.setFieldsValue(formValues);
       setStatusValue(currentStatus);
@@ -121,7 +128,7 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
   useEffect(() => {
     if (visible && productData && categories.length > 0 && !categoryLoading) {
       const currentCategoryId = form.getFieldValue('category_id');
-      const expectedCategoryId = extractCategoryId(productData.category_id);
+      const expectedCategoryId = extractCategoryId(productData.category_id, productData);
 
       // Only update if current value is empty/null but we have a valid expected value
       if (!currentCategoryId && expectedCategoryId) {
@@ -173,7 +180,7 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
       }
 
       dispatch(updateProductRequest(productData._id, formData, () => {
-        message.success('Cập nhật sản phẩm thành công!');
+
         onSuccess && onSuccess();
         onClose && onClose();
       }));
@@ -297,7 +304,19 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
               }
             >
               {/* Hiển thị category hiện tại nếu chưa có trong danh sách categories đã load */}
-              {productData?.category_id &&
+              {productData?.categoryDetail &&
+                !activeCategories.some(cat => cat._id === productData.categoryDetail._id) && (
+                  <Select.Option
+                    key={productData.categoryDetail._id}
+                    value={productData.categoryDetail._id}
+                    style={{ backgroundColor: '#f0f9ff', borderLeft: '3px solid #13C2C2' }}
+                  >
+                    {productData.categoryDetail.name} (Hiện tại - {productData.categoryDetail.status ? 'Hoạt động' : 'Ngừng hoạt động'})
+                  </Select.Option>
+                )}
+              {/* Fallback: Hiển thị category cũ nếu không có categoryDetail */}
+              {!productData?.categoryDetail &&
+                productData?.category_id &&
                 typeof productData.category_id === 'object' &&
                 productData.category_id.name &&
                 !activeCategories.some(cat => cat._id === productData.category_id._id) && (
@@ -312,7 +331,7 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
               {/* Hiển thị tất cả active categories */}
               {activeCategories.map(cat => (
                 <Select.Option key={cat._id} value={cat._id}>
-                  {cat.name}
+                  {cat.name} {cat.status ? '' : '(Ngừng hoạt động)'}
                 </Select.Option>
               ))}
             </Select>

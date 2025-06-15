@@ -15,7 +15,8 @@ import {
     Avatar,
     Tooltip,
     Rate,
-    Alert
+    Alert,
+    Spin
 } from "antd";
 import {
     EyeOutlined,
@@ -28,7 +29,7 @@ import {
     ExclamationCircleOutlined,
     CommentOutlined,
     ShoppingOutlined,
-    ReloadOutlined
+    SyncOutlined
 } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
@@ -103,101 +104,96 @@ const sampleReviews = [
 
 const ReviewManagement = () => {
     const dispatch = useDispatch();
+    const reduxState = useSelector(state => state.review);
+
     const {
         reviews,
         loading,
-        updateLoading,
-        statsLoading,
-        pagination: apiPagination,
-        total,
-        stats: apiStats,
-        message,
-        error
-    } = useSelector(state => state.review);
+        error,
+        pagination: reduxPagination,
+        total
+    } = reduxState;
 
     const [searchText, setSearchText] = useState("");
     const [pagination, setPagination] = useState({
         current: 1,
-        pageSize: 10,
+        pageSize: 5,
         total: 0,
     });
+
     const [isViewDetailModalVisible, setIsViewDetailModalVisible] = useState(false);
     const [selectedReview, setSelectedReview] = useState(null);
     const [isUpdateStatusModalVisible, setIsUpdateStatusModalVisible] = useState(false);
-    const [hasInitialLoad, setHasInitialLoad] = useState(false);
 
-    // Filter reviews based on search text
-    const filteredReviews = reviews.filter(review =>
-        review.user_id?.user_name?.toLowerCase().includes(searchText.toLowerCase()) ||
-        review.product_id?.name?.toLowerCase().includes(searchText.toLowerCase())
-    );
+    const fetchReviews = useCallback((page = 1, pageSize = 5, search = "") => {
+        const requestPayload = {
+            page,
+            limit: pageSize,
+            ...(search && { search })
+        };
 
-    // Calculate statistics from API or fallback to local calculation
-    const stats = apiStats?.total ? apiStats : {
-        total: filteredReviews.length,
-        approved: filteredReviews.filter(r => r.status).length,
-        pending: filteredReviews.filter(r => !r.status).length,
-        averageRating: filteredReviews.length > 0 ? (filteredReviews.reduce((sum, r) => sum + r.rating, 0) / filteredReviews.length).toFixed(1) : 0,
-    };
+        dispatch(getAllReviews(requestPayload.page, requestPayload.limit, requestPayload.search || ''));
+    }, [dispatch]);
 
-    // Fetch reviews - chỉ gọi khi cần thiết
-    const fetchReviews = useCallback((page = 1, pageSize = 10, search = "", force = false) => {
-        if (force || !hasInitialLoad || reviews.length === 0) {
-            dispatch(getAllReviews(page, pageSize, search));
+    // ✅ Load dữ liệu ban đầu
+    useEffect(() => {
+        fetchReviews(1, 5);
+    }, []); // Chỉ chạy 1 lần khi mount
+
+    // ✅ Sync Redux pagination với local state
+    useEffect(() => {
+        if (reduxPagination) {
+            const newPagination = {
+                current: reduxPagination.page || 1,
+                pageSize: reduxPagination.limit || 5,
+                total: reduxPagination.total || 0
+            };
+
+            setPagination(newPagination);
         }
-    }, [dispatch, hasInitialLoad, reviews.length]);
+    }, [reduxPagination]);
 
-    // Handle search với debounce
+    // ✅ Handle search
     const handleSearch = useCallback(
         debounce((value) => {
             setSearchText(value);
-            setPagination((prev) => ({ ...prev, current: 1 }));
-            dispatch(getAllReviews(1, pagination.pageSize, value));
+            setPagination(prev => {
+                const newPag = { ...prev, current: 1 };
+                return newPag;
+            });
+
+            fetchReviews(1, pagination.pageSize, value);
         }, 500),
-        [dispatch, pagination.pageSize]
+        [fetchReviews, pagination.pageSize]
     );
 
-    // Load data khi component mount - chỉ 1 lần
-    useEffect(() => {
-        if (!hasInitialLoad) {
-            fetchReviews(pagination.current, pagination.pageSize, searchText, true);
-            dispatch(getReviewStats());
-            setHasInitialLoad(true);
-        }
-    }, [fetchReviews, pagination.current, pagination.pageSize, searchText, hasInitialLoad, dispatch]);
+    // ✅ Handle table change
+    const handleTableChange = (paginationConfig, filters, sorter) => {
+        const { current, pageSize } = paginationConfig;
 
-    // Reset hasInitialLoad khi component unmount
-    useEffect(() => {
-        return () => {
-            setHasInitialLoad(false);
-        };
-    }, []);
-
-    // Update pagination when API data changes
-    useEffect(() => {
-        if (total?.totalReview !== undefined) {
-            setPagination(prev => ({
+        // Cập nhật local state trước
+        setPagination(prev => {
+            const newPag = {
                 ...prev,
-                total: total.totalReview
-            }));
-        }
-    }, [total]);
+                current: current || 1,
+                pageSize: pageSize || prev.pageSize
+            };
+            return newPag;
+        });
 
-    // Refresh data
-    const handleRefresh = () => {
-        fetchReviews(pagination.current, pagination.pageSize, "", true);
-        dispatch(getReviewStats());
-        setSearchText("");
+        fetchReviews(current || 1, pageSize || pagination.pageSize, searchText);
     };
 
-    // Handle pagination change
-    const handlePaginationChange = (page, pageSize) => {
-        setPagination(prev => ({
-            ...prev,
-            current: page,
-            pageSize: pageSize || 10
-        }));
-        dispatch(getAllReviews(page, pageSize || 10, searchText));
+    // ✅ Handle refresh
+    const handleRefresh = () => {
+        fetchReviews(pagination.current, pagination.pageSize, searchText);
+    };
+
+    // Statistics
+    const stats = {
+        total: total?.totalReview || 0,
+        approved: total?.totalApproved || 0,
+        pending: total?.totalPending || 0,
     };
 
     const handleViewDetail = (review) => {
@@ -230,15 +226,11 @@ const ReviewManagement = () => {
 
     // Handle success/error messages
     useEffect(() => {
-        if (message) {
-            toast.success(message);
-            dispatch(clearReviewMessages());
-        }
         if (error) {
             toast.error(error);
             dispatch(clearReviewMessages());
         }
-    }, [message, error, dispatch]);
+    }, [error, dispatch]);
 
     const getRatingColor = (rating) => {
         if (rating >= 4) return '#52c41a';
@@ -248,18 +240,50 @@ const ReviewManagement = () => {
 
     const columns = [
         {
+            title: "Khách hàng",
+            key: "customer",
+            render: (_, record) => (
+                <Space>
+                    <Avatar
+                        src={record.user_id?.avatar}
+                        icon={<UserOutlined />}
+                        style={{
+                            backgroundColor: record.user_id?.avatar ? 'transparent' : '#52c41a',
+                            border: '2px solid #f0f0f0'
+                        }}
+                        onError={() => false}
+                    />
+                    <div>
+                        <Text strong style={{ color: '#0D364C' }}>
+                            {record.user_id?.user_name || 'N/A'}
+                        </Text>
+                        <div style={{ fontSize: '12px', color: '#888' }}>
+                            {record.user_id?.email || 'N/A'}
+                        </div>
+                    </div>
+                </Space>
+            ),
+        },
+        {
             title: "Sản phẩm",
             key: "product",
             render: (_, record) => (
                 <Space>
                     <Avatar
-                        src={record.product_id?.image}
+                        src={record.productDetail?.image || record.product_id?.image}
                         icon={<ShoppingOutlined />}
                         style={{ backgroundColor: '#13C2C2' }}
                     />
-                    <Text strong style={{ color: '#0D364C' }}>
-                        {record.product_id?.name || 'N/A'}
-                    </Text>
+                    <div>
+                        <Text strong style={{ color: '#0D364C' }}>
+                            {record.productDetail?.name || record.product_id?.name || 'N/A'}
+                        </Text>
+                        {record.productDetail?.price && (
+                            <div style={{ fontSize: '12px', color: '#888' }}>
+                                Giá: {record.productDetail.price.toLocaleString('vi-VN')}₫
+                            </div>
+                        )}
+                    </div>
                 </Space>
             ),
         },
@@ -279,6 +303,25 @@ const ReviewManagement = () => {
                 >
                     {rating}/5 sao ⭐
                 </Tag>
+            ),
+        },
+        {
+            title: "Nội dung",
+            dataIndex: "comment",
+            key: "comment",
+            render: (comment) => (
+                <Text
+                    style={{
+                        maxWidth: '200px',
+                        display: 'block',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                    }}
+                    title={comment}
+                >
+                    {comment || 'N/A'}
+                </Text>
             ),
         },
         {
@@ -305,6 +348,22 @@ const ReviewManagement = () => {
             )
         },
         {
+            title: "Ngày tạo",
+            dataIndex: "createdAt",
+            key: "createdAt",
+            render: (date) => (
+                <Text type="secondary">
+                    {date ? new Date(date).toLocaleDateString('vi-VN', {
+                        year: 'numeric',
+                        month: '2-digit',
+                        day: '2-digit',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                    }) : 'N/A'}
+                </Text>
+            )
+        },
+        {
             title: "Hành động",
             key: "action",
             render: (_, record) => (
@@ -314,16 +373,7 @@ const ReviewManagement = () => {
                             type="text"
                             icon={<EyeOutlined />}
                             onClick={() => handleViewDetail(record)}
-                            style={{
-                                color: '#13C2C2',
-                                borderColor: '#13C2C2'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.target.style.backgroundColor = `#13C2C210`;
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.backgroundColor = 'transparent';
-                            }}
+                            style={{ color: '#13C2C2' }}
                         />
                     </Tooltip>
                     <Tooltip title="Cập nhật trạng thái">
@@ -331,22 +381,31 @@ const ReviewManagement = () => {
                             type="text"
                             icon={<EditOutlined />}
                             onClick={() => handleUpdateStatusClick(record)}
-                            style={{
-                                color: '#0D364C',
-                                borderColor: '#0D364C'
-                            }}
-                            onMouseEnter={(e) => {
-                                e.target.style.backgroundColor = `#0D364C10`;
-                            }}
-                            onMouseLeave={(e) => {
-                                e.target.style.backgroundColor = 'transparent';
-                            }}
+                            style={{ color: '#0D364C' }}
                         />
                     </Tooltip>
                 </Space>
             ),
         },
     ];
+
+    if (error) {
+        return (
+            <div style={{ padding: '24px' }}>
+                <Alert
+                    message="Lỗi tải dữ liệu"
+                    description={error}
+                    type="error"
+                    showIcon
+                    action={
+                        <Button size="small" onClick={handleRefresh}>
+                            Thử lại
+                        </Button>
+                    }
+                />
+            </div>
+        );
+    }
 
     return (
         <div style={{
@@ -356,14 +415,8 @@ const ReviewManagement = () => {
         }}>
             {/* Statistics Cards */}
             <Row gutter={[16, 16]} style={{ marginBottom: '24px' }}>
-                <Col xs={24} sm={6}>
-                    <Card
-                        style={{
-                            borderRadius: '12px',
-                            border: `1px solid #13C2C230`,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                    >
+                <Col xs={24} sm={8}>
+                    <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
                         <Statistic
                             title={<Text style={{ color: '#0D364C' }}>Tổng reviews</Text>}
                             value={stats.total}
@@ -372,14 +425,8 @@ const ReviewManagement = () => {
                         />
                     </Card>
                 </Col>
-                <Col xs={24} sm={6}>
-                    <Card
-                        style={{
-                            borderRadius: '12px',
-                            border: `1px solid #13C2C230`,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                    >
+                <Col xs={24} sm={8}>
+                    <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
                         <Statistic
                             title={<Text style={{ color: '#0D364C' }}>Đang hiển thị</Text>}
                             value={stats.approved}
@@ -388,14 +435,8 @@ const ReviewManagement = () => {
                         />
                     </Card>
                 </Col>
-                <Col xs={24} sm={6}>
-                    <Card
-                        style={{
-                            borderRadius: '12px',
-                            border: `1px solid #13C2C230`,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                    >
+                <Col xs={24} sm={8}>
+                    <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
                         <Statistic
                             title={<Text style={{ color: '#0D364C' }}>Đang ẩn</Text>}
                             value={stats.pending}
@@ -404,26 +445,9 @@ const ReviewManagement = () => {
                         />
                     </Card>
                 </Col>
-                <Col xs={24} sm={6}>
-                    <Card
-                        style={{
-                            borderRadius: '12px',
-                            border: `1px solid #13C2C230`,
-                            boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
-                        }}
-                    >
-                        <Statistic
-                            title={<Text style={{ color: '#0D364C' }}>Đánh giá TB</Text>}
-                            value={stats.averageRating}
-                            prefix={<StarOutlined style={{ color: '#faad14' }} />}
-                            valueStyle={{ color: '#faad14', fontWeight: 'bold' }}
-                            suffix="⭐"
-                        />
-                    </Card>
-                </Col>
             </Row>
 
-            {/* Main Content Card */}
+            {/* Main Content */}
             <Card
                 style={{
                     borderRadius: '16px',
@@ -432,32 +456,13 @@ const ReviewManagement = () => {
                 }}
                 title={
                     <Space>
-                        <Avatar
-                            style={{ backgroundColor: '#13C2C2' }}
-                            icon={<CommentOutlined />}
-                        />
+                        <Avatar style={{ backgroundColor: '#13C2C2' }} icon={<CommentOutlined />} />
                         <Title level={3} style={{ margin: 0, color: '#0D364C' }}>
                             Quản lý Reviews
                         </Title>
                     </Space>
                 }
             >
-                {/* Error Alert */}
-                {error && (
-                    <Alert
-                        message="Lỗi tải dữ liệu"
-                        description={error}
-                        type="error"
-                        closable
-                        style={{ marginBottom: '16px' }}
-                        action={
-                            <Button size="small" danger onClick={handleRefresh}>
-                                Thử lại
-                            </Button>
-                        }
-                    />
-                )}
-
                 {/* Header Actions */}
                 <div style={{
                     marginBottom: '24px',
@@ -469,65 +474,51 @@ const ReviewManagement = () => {
                 }}>
                     <Input.Search
                         placeholder="Tìm kiếm review..."
-                        value={searchText}
                         onChange={(e) => handleSearch(e.target.value)}
-                        style={{
-                            width: '320px',
-                            maxWidth: '100%'
-                        }}
+                        style={{ width: '320px', maxWidth: '100%' }}
                         size="large"
                         prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
                         allowClear
                         onSearch={(value) => handleSearch(value)}
-                        disabled={loading}
                     />
-                    <Space>
-                        <Button
-                            icon={<ReloadOutlined />}
-                            onClick={handleRefresh}
-                            size="large"
-                            loading={loading}
-                            style={{
-                                borderColor: '#13C2C2',
-                                color: '#13C2C2',
-                                borderRadius: '8px'
-                            }}
-                        >
-                            Làm mới
-                        </Button>
-                    </Space>
+                    <Button
+                        onClick={handleRefresh}
+                        icon={<SyncOutlined />}
+                        loading={loading}
+                        style={{ borderColor: '#13C2C2', color: '#13C2C2' }}
+                    >
+                        Làm mới
+                    </Button>
                 </div>
 
                 {/* Table */}
-                <Table
-                    rowKey="_id"
-                    columns={columns}
-                    dataSource={filteredReviews}
-                    loading={loading}
-                    pagination={{
-                        current: pagination.current,
-                        pageSize: pagination.pageSize,
-                        total: pagination.total,
-                        showSizeChanger: true,
-                        showQuickJumper: true,
-                        showTotal: (total, range) => (
-                            <Text style={{ color: '#0D364C' }}>
-                                Hiển thị {range[0]}-{range[1]} trong tổng số {total} reviews
-                            </Text>
-                        ),
-                        onChange: handlePaginationChange,
-                    }}
-                    style={{
-                        borderRadius: '12px',
-                        overflow: 'hidden'
-                    }}
-                    rowClassName={(record, index) =>
-                        index % 2 === 0 ? '' : 'ant-table-row-alternate'
-                    }
-                    locale={{
-                        emptyText: loading ? 'Đang tải...' : 'Không có dữ liệu'
-                    }}
-                />
+                <Spin spinning={loading}>
+                    <Table
+                        rowKey="_id"
+                        columns={columns}
+                        dataSource={reviews || []}
+                        pagination={{
+                            current: pagination.current,
+                            pageSize: pagination.pageSize,
+                            total: pagination.total,
+                            showSizeChanger: true,
+                            showQuickJumper: true,
+                            pageSizeOptions: ['5', '10', '20', '50'],
+                            showTotal: (total, range) => (
+                                <Text style={{ color: '#0D364C' }}>
+                                    Hiển thị {range[0]}-{range[1]} trong tổng số {total} reviews
+                                </Text>
+                            ),
+                            onChange: (page, pageSize) => {
+                                handleTableChange({ current: page, pageSize }, {}, {});
+                            },
+                            onShowSizeChange: (current, size) => {
+                                handleTableChange({ current, pageSize: size }, {}, {});
+                            },
+                        }}
+                        style={{ borderRadius: '12px', overflow: 'hidden' }}
+                    />
+                </Spin>
             </Card>
 
             {/* Modals */}
@@ -547,48 +538,6 @@ const ReviewManagement = () => {
                     onSuccess={handleUpdateStatusSuccess}
                 />
             )}
-
-            <style>
-                {`
-          .ant-table-row-alternate {
-            background-color: #13C2C205 !important;
-          }
-          
-          .ant-table-thead > tr > th {
-            background-color: #0D364C !important;
-            color: white !important;
-            font-weight: 600 !important;
-            border-bottom: 2px solid #13C2C2 !important;
-          }
-          
-          .ant-table-tbody > tr:hover > td {
-            background-color: #13C2C210 !important;
-          }
-          
-          .ant-pagination-item-active {
-            border-color: #13C2C2 !important;
-            background-color: #13C2C2 !important;
-          }
-          
-          .ant-pagination-item-active a {
-            color: white !important;
-          }
-          
-          .ant-pagination-item:hover {
-            border-color: #13C2C2 !important;
-          }
-          
-          .ant-pagination-item:hover a {
-            color: #13C2C2 !important;
-          }
-          
-          .ant-input:focus,
-          .ant-input-focused {
-            border-color: #13C2C2 !important;
-            box-shadow: 0 0 0 2px #13C2C220 !important;
-          }
-        `}
-            </style>
         </div>
     );
 };

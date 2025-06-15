@@ -137,7 +137,7 @@ export const clearReviewMessages = () => ({
 });
 
 // Thunk action creators for easier usage
-export const getAllReviews = (page = 1, limit = 10, search = '') => {
+export const getAllReviews = (page = 1, limit = 5, search = '') => {
     return getAllReviewsRequest({ page, limit, search });
 };
 
@@ -157,6 +157,6 @@ export const getReviewStats = () => {
     return getReviewStatsRequest();
 };
 
-export const searchReviews = (keyword, page = 1, limit = 10) => {
+export const searchReviews = (keyword, page = 1, limit = 5) => {
     return searchReviewsRequest({ keyword, page, limit });
 }; 

@@ -12,7 +12,7 @@ export default function* rootSaga() {
     authSaga(),
     categorySaga(),
     orderSaga(),
-    profileSaga()
+    profileSaga(),
     productSaga(),
     reviewSaga(),
     userSaga(),

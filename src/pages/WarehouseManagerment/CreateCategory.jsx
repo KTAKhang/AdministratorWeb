@@ -13,6 +13,7 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [switchValue, setSwitchValue] = useState(true);
   const [imageFile, setImageFile] = useState(null);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   const dispatch = useDispatch();
   const { createLoading, createError } = useSelector(state => state.category);
@@ -33,20 +34,16 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
 
   // Handle create success/error
   useEffect(() => {
-    if (!createLoading && !createError && visible) {
-      // Success case - this will be triggered when createLoading becomes false and no error
-      const currentFormValues = form.getFieldsValue();
-      if (currentFormValues.name) { // Check if form was actually submitted
-        message.success('Category đã được tạo thành công!');
-        form.resetFields();
-        setSwitchValue(true);
-        setImageFile(null);
-        setPreviewImage("");
-        onSuccess && onSuccess();
-        onClose && onClose();
-      }
+    if (hasSubmitted && !createLoading && !createError && visible) {
+      setHasSubmitted(false); // Reset lại
+      form.resetFields();
+      setSwitchValue(true);
+      setImageFile(null);
+      setPreviewImage("");
+      onSuccess && onSuccess();
+      onClose && onClose();
     }
-  }, [createLoading, createError, visible, form, onSuccess, onClose]);
+  }, [createLoading, createError, visible, form, onSuccess, onClose, hasSubmitted]);
 
   // Handle error messages
   useEffect(() => {
@@ -73,6 +70,7 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
       status: values.status
     };
 
+    setHasSubmitted(true);
     dispatch(createCategoryRequest(categoryData));
   };
 

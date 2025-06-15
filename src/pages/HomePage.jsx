@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { User, Lock, Eye, EyeOff } from 'lucide-react';
 import { loginRequest } from '../redux/actions/authActions';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, Link } from 'react-router-dom';
 
 const LoginPage = () => {
   const dispatch = useDispatch();
@@ -140,9 +140,9 @@ const LoginPage = () => {
 
             {/* Remember Me & Forgot Password */}
             <div className="flex items-center justify-between">
-              <a href="#" className="text-sm transition-colors duration-200" style={{ color: '#13C2C2' }}>
+              <Link to="/forgot-password" className="text-sm transition-colors duration-200" style={{ color: '#13C2C2' }}>
                 Quên mật khẩu?
-              </a>
+              </Link>
             </div>
 
             {/* Login Button */}
@@ -173,7 +173,7 @@ const LoginPage = () => {
         </div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px) translateX(0px); }
           25% { transform: translateY(-20px) translateX(10px); }

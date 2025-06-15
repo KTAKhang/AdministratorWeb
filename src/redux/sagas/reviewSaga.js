@@ -1,4 +1,4 @@
-import { call, put, takeEvery, takeLatest } from 'redux-saga/effects';
+import { call, put, takeEvery, takeLatest, all } from 'redux-saga/effects';
 import axios from 'axios';
 import { toast } from 'react-toastify';
 import {
@@ -32,11 +32,11 @@ const getAuthHeaders = () => {
     };
 };
 
-// API call to get all reviews
-const apiGetAllReviews = async () => {
+// API call to get all reviews with pagination
+const apiGetAllReviews = async (page = 1, limit = 5) => {
     try {
         const response = await axios.get(
-            `${API_BASE_URL}/product-review/all`,
+            `${API_BASE_URL}/product-review/all?page=${page}&limit=${limit}`,
             {
                 headers: getAuthHeaders()
             }
@@ -81,6 +81,21 @@ const apiUpdateReview = async (reviewId, updateData) => {
     }
 };
 
+// API call to get all products (dùng lại logic từ productSaga)
+const apiGetAllProducts = async (page = 1, limit = 100) => {
+    const token = localStorage.getItem('token');
+    const response = await axios.get(
+        `${API_BASE_URL}/product`,
+        {
+            params: { page, limit },
+            headers: {
+                'Authorization': `Bearer ${token}`
+            }
+        }
+    );
+    return response.data;
+};
+
 // Helper function to format review data for display
 const formatReviewForDisplay = (review) => ({
     _id: review._id,
@@ -104,13 +119,57 @@ const formatReviewForDisplay = (review) => ({
 // Get all reviews saga
 function* getAllReviewsSaga(action) {
     try {
-        const { page = 1, limit = 10, search = '' } = action.payload || {};
+        const { page = 1, limit = 5, search = '' } = action.payload || {};
 
-        const data = yield call(apiGetAllReviews);
+        // Lấy cả review và product song song để có đầy đủ thông tin sản phẩm
+        const [reviewData, productData] = yield all([
+            call(apiGetAllReviews, page, limit),
+            call(apiGetAllProducts, 1, 1000) // lấy tối đa 1000 sản phẩm để map
+        ]);
 
-        if (data.success) {
-            // Format reviews data
-            let formattedReviews = data.data.map(review => formatReviewForDisplay(review));
+        if (reviewData.success && productData.status === 'OK') {
+            // Tạo map sản phẩm để lấy thông tin đầy đủ
+            const productMap = {};
+            (productData.data.products || []).forEach(product => {
+                productMap[product._id] = product;
+            });
+
+            console.log('🔍 Product map created:', Object.keys(productMap).length, 'products');
+            console.log('🔍 Sample product:', productData.data.products?.[0]);
+
+            // Format reviews data từ API response mới
+            let formattedReviews = reviewData.data.reviews.map(review => {
+                const productDetail = productMap[review.product._id];
+
+                console.log('🔍 Review product ID:', review.product._id);
+                console.log('🔍 Found product detail:', productDetail ? 'YES' : 'NO');
+                if (productDetail) {
+                    console.log('🔍 Product image:', productDetail.image);
+                }
+
+                return {
+                    ...review,
+                    // Giữ lại các trường cũ cho tương thích UI
+                    user_id: {
+                        _id: review.user._id,
+                        user_name: review.user.user_name || review.user.email.split('@')[0], // Sử dụng user_name từ API
+                        email: review.user.email,
+                        avatar: review.user.avatar || null
+                    },
+                    product_id: {
+                        _id: review.product._id,
+                        name: review.product.name || productDetail?.name || '',
+                        image: productDetail?.image || 'https://via.placeholder.com/60'
+                    },
+                    // Thêm thông tin chi tiết sản phẩm
+                    productDetail: productDetail || null,
+                    rating: review.rating,
+                    comment: review.content,
+                    status: review.status,
+                    createdAt: review.createdAt,
+                    updatedAt: review.updatedAt || review.createdAt
+                };
+            });
 
             // Client-side search filtering if search term provided
             if (search) {
@@ -123,31 +182,27 @@ function* getAllReviewsSaga(action) {
                 );
             }
 
-            // Client-side pagination
-            const startIndex = (page - 1) * limit;
-            const endIndex = startIndex + limit;
-            const paginatedReviews = formattedReviews.slice(startIndex, endIndex);
-
-            const totalReviews = formattedReviews.length;
-            const totalPages = Math.ceil(totalReviews / limit);
+            // Sử dụng pagination data từ API
+            const apiTotal = reviewData.data.total;
 
             yield put(getAllReviewsSuccess({
-                reviews: paginatedReviews,
+                reviews: formattedReviews,
                 pagination: {
-                    page: page,
+                    page: apiTotal.currentPage,
                     limit: limit,
-                    totalPages: totalPages
+                    totalPages: apiTotal.totalPage,
+                    total: apiTotal.totalReview
                 },
                 total: {
-                    currentPage: page,
-                    totalReview: totalReviews,
-                    totalPage: totalPages
+                    currentPage: apiTotal.currentPage,
+                    totalReview: apiTotal.totalReview,
+                    totalPage: apiTotal.totalPage,
+                    totalApproved: apiTotal.totalApproved,
+                    totalPending: apiTotal.totalPending
                 }
             }));
-
-            // Removed toast success for routine data fetching
         } else {
-            throw new Error(data.message || 'Failed to fetch reviews');
+            throw new Error(reviewData.message || 'Failed to fetch reviews');
         }
     } catch (error) {
         console.error('Get all reviews error:', error);
@@ -163,15 +218,45 @@ function* getReviewDetailsSaga(action) {
     try {
         const { id } = action.payload;
 
-        // Since we don't have a direct get review by ID endpoint,
-        // we'll get all reviews and find the specific one
-        const data = yield call(apiGetAllReviews);
+        // Lấy cả review và product data để có thông tin đầy đủ
+        const [reviewData, productData] = yield all([
+            call(apiGetAllReviews, 1, 1000), // Lấy nhiều reviews để tìm
+            call(apiGetAllProducts, 1, 1000) // Lấy products để map
+        ]);
 
-        if (data.success) {
-            const review = data.data.find(r => r._id === id);
+        if (reviewData.success && productData.status === 'OK') {
+            const review = reviewData.data.reviews.find(r => r._id === id);
 
             if (review) {
-                const formattedReview = formatReviewForDisplay(review);
+                // Tạo map sản phẩm
+                const productMap = {};
+                (productData.data.products || []).forEach(product => {
+                    productMap[product._id] = product;
+                });
+
+                const productDetail = productMap[review.product._id];
+
+                const formattedReview = {
+                    ...review,
+                    user_id: {
+                        _id: review.user._id,
+                        user_name: review.user.user_name || review.user.email.split('@')[0],
+                        email: review.user.email,
+                        avatar: review.user.avatar || null
+                    },
+                    product_id: {
+                        _id: review.product._id,
+                        name: review.product.name || productDetail?.name || '',
+                        image: productDetail?.image || 'https://via.placeholder.com/60'
+                    },
+                    productDetail: productDetail || null,
+                    rating: review.rating,
+                    comment: review.content,
+                    status: review.status,
+                    createdAt: review.createdAt,
+                    updatedAt: review.updatedAt || review.createdAt
+                };
+
                 yield put(getReviewDetailsSuccess({
                     review: formattedReview
                 }));
@@ -179,7 +264,7 @@ function* getReviewDetailsSaga(action) {
                 throw new Error('Không tìm thấy đánh giá');
             }
         } else {
-            throw new Error(data.message || 'Failed to fetch review details');
+            throw new Error(reviewData.message || 'Failed to fetch review details');
         }
     } catch (error) {
         console.error('Get review details error:', error);
@@ -259,16 +344,21 @@ function* deleteReviewSaga(action) {
 // Get review statistics saga
 function* getReviewStatsSaga() {
     try {
-        const data = yield call(apiGetAllReviews);
+        // Lấy tất cả reviews để tính thống kê (có thể cần lấy nhiều trang)
+        const data = yield call(apiGetAllReviews, 1, 1000); // Lấy tối đa 1000 reviews
 
         if (data.success) {
-            const reviews = data.data;
+            const reviews = data.data.reviews;
+            const apiTotal = data.data.total;
 
-            // Calculate statistics
+            // Sử dụng thống kê từ API nếu có, nếu không thì tính toán
             const stats = {
-                total: reviews.length,
-                approved: reviews.filter(r => r.status === true).length,
-                pending: reviews.filter(r => r.status === false).length,
+                totalReview: apiTotal.totalReview,
+                totalApproved: apiTotal.totalApproved,
+                totalPending: apiTotal.totalPending,
+                total: apiTotal.totalReview,
+                approved: apiTotal.totalApproved,
+                pending: apiTotal.totalPending,
                 averageRating: reviews.length > 0
                     ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
                     : 0,
@@ -297,7 +387,7 @@ function* getReviewStatsSaga() {
 // Search reviews saga
 function* searchReviewsSaga(action) {
     try {
-        const { keyword, page = 1, limit = 10 } = action.payload;
+        const { keyword, page = 1, limit = 5 } = action.payload;
 
         // Use the getAllReviews saga with search parameter
         yield* getAllReviewsSaga({ payload: { page, limit, search: keyword } });

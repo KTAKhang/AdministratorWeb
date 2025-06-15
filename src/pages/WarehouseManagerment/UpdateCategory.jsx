@@ -36,6 +36,7 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
   const [modalVisible, setModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
   const [statusValue, setStatusValue] = useState(true);
+  const [hasSubmitted, setHasSubmitted] = useState(false);
 
   useEffect(() => {
     if (visible && categoryData) {
@@ -105,21 +106,17 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
 
     // Dispatch update action
     dispatch(updateCategoryRequest(updateData));
+    setHasSubmitted(true);
   };
 
   // Handle successful update
   useEffect(() => {
-    if (!updateLoading && !updateError && visible) {
-      // Check if update was successful by comparing with previous loading state
-      const wasLoading = localStorage.getItem('categoryUpdateLoading');
-      if (wasLoading === 'true') {
-        message.success('Cập nhật category thành công!');
-        localStorage.removeItem('categoryUpdateLoading');
-        onSuccess && onSuccess(categoryData._id);
-        onClose && onClose();
-      }
+    if (hasSubmitted && !updateLoading && !updateError && visible) {
+      setHasSubmitted(false); // Reset lại
+      onSuccess && onSuccess(categoryData._id);
+      onClose && onClose();
     }
-  }, [updateLoading, updateError, visible, categoryData, onSuccess, onClose]);
+  }, [updateLoading, updateError, visible, categoryData, onSuccess, onClose, hasSubmitted]);
 
   // Track loading state
   useEffect(() => {

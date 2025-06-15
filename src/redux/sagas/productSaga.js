@@ -1,5 +1,5 @@
 // sagas/productSaga.js
-import { call, put, takeLatest } from "redux-saga/effects";
+import { call, put, takeLatest, all } from "redux-saga/effects";
 import axios from "axios";
 import {
     FETCH_PRODUCT_REQUEST,
@@ -29,15 +29,28 @@ const getAuthHeader = () => {
     };
 };
 
-// Fetch products
-const fetchProducts = async (params) => {
+// Fetch products with new API structure
+const fetchProducts = async ({ page = 1, limit = 12 }) => {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_BASE_URL}/product`, {
-        params,
+    const response = await axios.get(`${API_BASE_URL}/product?page=${page}&limit=${limit}`, {
         headers: {
-            'Authorization': `Bearer ${token}`
+            'Authorization': `Bearer ${token}`,
+            'accept': '*/*'
         }
     });
+    return response.data;
+};
+
+// API call to get all categories (dùng lại logic từ categorySaga)
+const apiGetAllCategories = async (page = 1, limit = 100) => {
+    const response = await axios.get(
+        `${API_BASE_URL}/category?page=${page}&limit=${limit}`,
+        {
+            headers: {
+                accept: "*/*",
+            },
+        }
+    );
     return response.data;
 };
 
@@ -127,8 +140,58 @@ const deleteProduct = async (id) => {
 // Saga handlers
 function* handleFetchProducts(action) {
     try {
-        const response = yield call(fetchProducts, action.payload);
-        yield put({ type: FETCH_PRODUCT_SUCCESS, payload: response });
+        const { page = 1, limit = 12 } = action.payload;
+
+        // Lấy cả product và category song song
+        const [productResponse, categoryResponse] = yield all([
+            call(fetchProducts, { page, limit }),
+            call(apiGetAllCategories, 1, 1000) // lấy tối đa 1000 category
+        ]);
+
+        if (productResponse.status === 'OK') {
+            // Tạo map category
+            const categoryMap = {};
+            if (categoryResponse.data && categoryResponse.data.categories) {
+                categoryResponse.data.categories.forEach(category => {
+                    categoryMap[category._id] = category;
+                    // Map theo tên category để tương thích với API hiện tại
+                    categoryMap[category.name] = category;
+                });
+            }
+
+            // Map thông tin category chi tiết vào từng sản phẩm
+            const productsWithCategoryDetail = (productResponse.data.products || []).map(product => ({
+                ...product,
+                categoryDetail: categoryMap[product.category_name] || null,
+                // Giữ lại trường cũ cho tương thích
+                category_id: product.category_id || (categoryMap[product.category_name]?._id)
+            }));
+
+            // Handle new API response structure
+            const processedData = {
+                status: productResponse.status,
+                message: productResponse.message,
+                data: {
+                    products: productsWithCategoryDetail,
+                    total: {
+                        currentPage: productResponse.data.total?.currentPage || page,
+                        totalProduct: productResponse.data.total?.totalProduct || 0,
+                        totalPage: productResponse.data.total?.totalPage || 1,
+                        totalActive: productResponse.data.total?.totalActive || 0,
+                        totalInactive: productResponse.data.total?.totalInactive || 0,
+                    }
+                },
+                pagination: {
+                    page: page,
+                    limit: limit,
+                    totalPages: productResponse.data.total?.totalPage || 1,
+                }
+            };
+
+            yield put({ type: FETCH_PRODUCT_SUCCESS, payload: processedData });
+        } else {
+            throw new Error(productResponse.message || 'Failed to fetch products');
+        }
     } catch (error) {
         const errorMessage = error.response?.data?.message || error.message;
         yield put({ type: FETCH_PRODUCT_FAILURE, payload: errorMessage });

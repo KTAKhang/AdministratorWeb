@@ -6,13 +6,16 @@ const initialState = {
     selectedReview: null,
     pagination: {
         page: 1,
-        limit: 10,
-        totalPages: 0
+        limit: 5,
+        totalPages: 0,
+        total: 0
     },
     total: {
         currentPage: 1,
         totalReview: 0,
-        totalPage: 0
+        totalPage: 0,
+        totalApproved: 0,
+        totalPending: 0
     },
     stats: {
         total: 0,
@@ -59,9 +62,20 @@ const reviewReducer = (state = initialState, action) => {
             return {
                 ...state,
                 loading: false,
-                reviews: action.payload.reviews,
-                pagination: action.payload.pagination,
-                total: action.payload.total,
+                reviews: Array.isArray(action.payload.reviews) ? action.payload.reviews : [],
+                pagination: {
+                    page: action.payload.pagination?.page || 1,
+                    limit: action.payload.pagination?.limit || 5,
+                    totalPages: action.payload.pagination?.totalPages || 0,
+                    total: action.payload.pagination?.total || action.payload.total?.totalReview || 0
+                },
+                total: {
+                    currentPage: action.payload.total?.currentPage || 1,
+                    totalReview: action.payload.total?.totalReview || 0,
+                    totalPage: action.payload.total?.totalPage || 0,
+                    totalApproved: action.payload.total?.totalApproved || 0,
+                    totalPending: action.payload.total?.totalPending || 0
+                },
                 error: ''
             };
 
@@ -106,16 +120,31 @@ const reviewReducer = (state = initialState, action) => {
             };
 
         case REVIEW_ACTION_TYPES.UPDATE_REVIEW_STATUS_SUCCESS:
-            return {
-                ...state,
-                updateLoading: false,
-                message: 'Cập nhật trạng thái thành công',
-                error: '',
-                reviews: state.reviews.map(review =>
+            const updatedReviews = Array.isArray(state.reviews)
+                ? state.reviews.map(review =>
                     review._id === action.payload.reviewId
                         ? { ...review, ...action.payload.updatedData }
                         : review
                 )
+                : [];
+
+            // Update statistics based on the change
+            const updatedTotal = { ...state.total };
+            if (action.payload.updatedData.status !== undefined) {
+                // Recalculate approved/pending counts
+                const approvedCount = updatedReviews.filter(r => r.status === true).length;
+                const pendingCount = updatedReviews.filter(r => r.status === false).length;
+
+                updatedTotal.totalApproved = approvedCount;
+                updatedTotal.totalPending = pendingCount;
+            }
+
+            return {
+                ...state,
+                updateLoading: false,
+                error: '',
+                reviews: updatedReviews,
+                total: updatedTotal
             };
 
         case REVIEW_ACTION_TYPES.UPDATE_REVIEW_STATUS_FAILURE:
@@ -134,16 +163,29 @@ const reviewReducer = (state = initialState, action) => {
             };
 
         case REVIEW_ACTION_TYPES.DELETE_REVIEW_SUCCESS:
+            const reviewsAfterDelete = Array.isArray(state.reviews)
+                ? state.reviews.map(review =>
+                    review._id === action.payload.reviewId
+                        ? { ...review, status: false }
+                        : review
+                )
+                : [];
+
+            // Update statistics after delete (hide)
+            const totalAfterDelete = { ...state.total };
+            const approvedAfterDelete = reviewsAfterDelete.filter(r => r.status === true).length;
+            const pendingAfterDelete = reviewsAfterDelete.filter(r => r.status === false).length;
+
+            totalAfterDelete.totalApproved = approvedAfterDelete;
+            totalAfterDelete.totalPending = pendingAfterDelete;
+
             return {
                 ...state,
                 deleteLoading: false,
                 message: 'Đã ẩn đánh giá thành công',
                 error: '',
-                reviews: state.reviews.map(review =>
-                    review._id === action.payload.reviewId
-                        ? { ...review, status: false }
-                        : review
-                )
+                reviews: reviewsAfterDelete,
+                total: totalAfterDelete
             };
 
         case REVIEW_ACTION_TYPES.DELETE_REVIEW_FAILURE:
@@ -188,10 +230,21 @@ const reviewReducer = (state = initialState, action) => {
             return {
                 ...state,
                 searchLoading: false,
-                searchResults: action.payload.reviews,
+                searchResults: Array.isArray(action.payload.reviews) ? action.payload.reviews : [],
                 searchKeyword: action.payload.keyword,
-                pagination: action.payload.pagination,
-                total: action.payload.total,
+                pagination: {
+                    page: action.payload.pagination?.page || 1,
+                    limit: action.payload.pagination?.limit || 5,
+                    totalPages: action.payload.pagination?.totalPages || 0,
+                    total: action.payload.pagination?.total || action.payload.total?.totalReview || 0
+                },
+                total: {
+                    currentPage: action.payload.total?.currentPage || 1,
+                    totalReview: action.payload.total?.totalReview || 0,
+                    totalPage: action.payload.total?.totalPage || 0,
+                    totalApproved: action.payload.total?.totalApproved || 0,
+                    totalPending: action.payload.total?.totalPending || 0
+                },
                 error: ''
             };
 
