@@ -204,8 +204,8 @@ function* handleUpdateUser(action) {
         }
     } catch (error) {
         console.error('Error updating user:', error);
-        yield put(updateUserFailure(error.message));
-        toast.error('Có lỗi xảy ra khi cập nhật: ' + error.message);
+        // yield put(updateUserFailure(error.message));
+        // toast.error('Có lỗi xảy ra khi cập nhật: ' + error.message);
     }
 }
 
