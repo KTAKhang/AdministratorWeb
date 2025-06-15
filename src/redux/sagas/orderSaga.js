@@ -8,30 +8,59 @@ import {
     UPDATE_ORDER_REQUEST,
     updateOrderSuccess,
     updateOrderFailure,
+    FETCH_ORDER_BY_STATUS_REQUEST,
+    fetchOrderByStatusSuccess,
+    fetchOrderByStatusFailure,
 } from "../actions/orderActions";
 
 const API_BASE_URL = "https://youtube-fullstack-nodejs-forbeginer.onrender.com/api";
 
-// API function for fetching orders
-const fetchOrders = async ({ page, limit }) => {
-    const token = localStorage.getItem('token');
+// API function for fetching orders with search support
+const fetchOrders = async ({ page, limit, search }) => {
+    const token = localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODI3MjA5ODhhNjc5ZmM2YTkyYjAwNjgiLCJpc0FkbWluIjp0cnVlLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NDk5NzM1MTYsImV4cCI6MTc1MjU2NTUxNn0.Bra4_sSiYgGgz4KPvEAcrUlYoWKqZwxNtXRjokKP4ak';
 
-    console.log("Fetching orders with token:", token);
-    const response = await axios.get(
-        `${API_BASE_URL}/order?page=${page}&limit=${limit}`,
-        {
-            headers: {
-                'accept': 'application/json',
-                'Authorization': `Bearer ${token}`,
-            },
-        }
-    );
+    let url = `${API_BASE_URL}/order?page=${page}&limit=${limit}`;
+    if (search && search.trim()) {
+        url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+
+    console.log("🔍 Fetching orders with URL:", url);
+
+    const response = await axios.get(url, {
+        headers: {
+            'accept': 'application/json',
+            'Authorization': `Bearer ${token}`,
+        },
+    });
+    return response.data;
+};
+
+// API function for fetching orders by status
+const fetchOrdersByStatus = async ({ status, page, limit, search }) => {
+    const token = localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODI3MjA5ODhhNjc5ZmM2YTkyYjAwNjgiLCJpc0FkbWluIjp0cnVlLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NDk5NzM1MTYsImV4cCI6MTc1MjU2NTUxNn0.Bra4_sSiYgGgz4KPvEAcrUlYoWKqZwxNtXRjokKP4ak';
+
+    let url = `${API_BASE_URL}/order/status?page=${page}&limit=${limit}`;
+    if (status && status.trim()) {
+        url += `&status=${status.trim()}`;
+    }
+    if (search && search.trim()) {
+        url += `&search=${encodeURIComponent(search.trim())}`;
+    }
+
+    console.log("🔍 Fetching orders by status with URL:", url);
+
+    const response = await axios.get(url, {
+        headers: {
+            'accept': '*/*',
+            'Authorization': `Bearer ${token}`,
+        },
+    });
     return response.data;
 };
 
 // API function for updating order
 const updateOrder = async ({ id, orderData }) => {
-    const token = localStorage.getItem('token');
+    const token = localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODI3MjA5ODhhNjc5ZmM2YTkyYjAwNjgiLCJpc0FkbWluIjp0cnVlLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NDk5NzM1MTYsImV4cCI6MTc1MjU2NTUxNn0.Bra4_sSiYgGgz4KPvEAcrUlYoWKqZwxNtXRjokKP4ak';
 
     console.log("🚀 Sending update request:", { id, orderData });
     const response = await axios.put(
@@ -52,13 +81,25 @@ const updateOrder = async ({ id, orderData }) => {
 
 function* handleFetchOrders(action) {
     try {
-        const { page, limit } = action.payload;
-        const data = yield call(fetchOrders, { page, limit });
+        const { page, limit, search } = action.payload;
+        const data = yield call(fetchOrders, { page, limit, search });
         yield put(fetchOrderSuccess(data));
     } catch (error) {
         console.error("❌ Fetch orders error:", error);
         const errorMessage = error.response?.data?.message || error.message;
         yield put(fetchOrderFailure(errorMessage));
+    }
+}
+
+function* handleFetchOrdersByStatus(action) {
+    try {
+        const { status, page, limit, search } = action.payload;
+        const data = yield call(fetchOrdersByStatus, { status, page, limit, search });
+        yield put(fetchOrderByStatusSuccess(data));
+    } catch (error) {
+        console.error("❌ Fetch orders by status error:", error);
+        const errorMessage = error.response?.data?.message || error.message;
+        yield put(fetchOrderByStatusFailure(errorMessage));
     }
 }
 
@@ -114,4 +155,5 @@ function* handleUpdateOrder(action) {
 export default function* orderSaga() {
     yield takeLatest(FETCH_ORDER_REQUEST, handleFetchOrders);
     yield takeLatest(UPDATE_ORDER_REQUEST, handleUpdateOrder);
+    yield takeLatest(FETCH_ORDER_BY_STATUS_REQUEST, handleFetchOrdersByStatus);
 }

@@ -1,4 +1,3 @@
-// 🚨 DEBUG VERSION - Thêm nhiều log để tìm lỗi
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
@@ -16,7 +15,8 @@ import {
   Avatar,
   Tooltip,
   Spin,
-  Alert
+  Alert,
+  Select
 } from "antd";
 import {
   EyeOutlined,
@@ -30,11 +30,12 @@ import {
   ClockCircleOutlined,
   SyncOutlined,
   CarOutlined,
-  QuestionCircleOutlined
+  QuestionCircleOutlined,
+  CopyOutlined
 } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
-import { fetchOrderRequest } from "../../redux/actions/orderActions";
+import { fetchOrderRequest, fetchOrderByStatusRequest } from "../../redux/actions/orderActions";
 import ViewOrderDetail from "./ViewOrderDetail";
 import UpdateOrderStatus from "./UpdateOrderStatus";
 
@@ -54,6 +55,7 @@ const OrderManagement = () => {
 
 
   const [searchText, setSearchText] = useState("");
+  const [selectedStatus, setSelectedStatus] = useState(""); // Thêm state cho status filter
   const [pagination, setPagination] = useState({
     current: 1,
     pageSize: 5,
@@ -66,17 +68,26 @@ const OrderManagement = () => {
 
 
 
-  const fetchOrders = useCallback((page = 1, pageSize = 5, search = "") => {
+  const fetchOrders = useCallback((page = 1, pageSize = 5, search = "", status = "") => {
+    console.log('🔍 fetchOrders called with:', { page, pageSize, search, status });
+
+    // Tạo search query kết hợp status và search text
+    let combinedSearch = search;
+    if (status && status !== 'all') {
+      // Nếu có status filter, thêm vào search query
+      combinedSearch = status + (search ? ` ${search}` : '');
+    }
 
     const requestPayload = {
       page,
       limit: pageSize,
-      ...(search && { search })  // Chỉ thêm search nếu có
+      ...(combinedSearch && { search: combinedSearch })
     };
 
+    console.log('🔍 Final request payload:', requestPayload);
 
+    // Sử dụng API chính với search kết hợp
     dispatch(fetchOrderRequest(requestPayload));
-
   }, [dispatch]);
 
   // ✅ Load dữ liệu ban đầu
@@ -100,23 +111,22 @@ const OrderManagement = () => {
     }
   }, [reduxPagination]);
 
-  // ✅ Handle search
-  const handleSearch = useCallback(
+  // ✅ Handle search với debounce 2 giây - API call only
+  const debouncedSearch = useCallback(
     debounce((value) => {
-
-
-      setSearchText(value);
-      setPagination(prev => {
-        const newPag = { ...prev, current: 1 };
-
-        return newPag;
-      });
-
-      fetchOrders(1, pagination.pageSize, value);
-
-    }, 500),
-    [fetchOrders, pagination.pageSize]
+      console.log("🔍 Search API triggered:", value);
+      setPagination(prev => ({ ...prev, current: 1 }));
+      fetchOrders(1, pagination.pageSize, value, selectedStatus);
+    }, 2000), // API call after 2 seconds of no typing
+    [fetchOrders, pagination.pageSize, selectedStatus]
   );
+
+  // ✅ Handle search input change - immediate UI update
+  const handleSearch = (value) => {
+    console.log("🔍 Search input changed:", value);
+    setSearchText(value); // Update UI immediately
+    debouncedSearch(value); // Debounced API call
+  };
 
   // ✅ Handle table change với log chi tiết
   const handleTableChange = (paginationConfig, filters, sorter) => {
@@ -138,14 +148,31 @@ const OrderManagement = () => {
     });
 
 
-    fetchOrders(current || 1, pageSize || pagination.pageSize, searchText);
+    fetchOrders(current || 1, pageSize || pagination.pageSize, searchText, selectedStatus);
 
   };
 
   // ✅ Handle refresh
   const handleRefresh = () => {
+    console.log("🔄 Refreshing orders...");
+    fetchOrders(pagination.current, pagination.pageSize, searchText, selectedStatus);
+  };
 
-    fetchOrders(pagination.current, pagination.pageSize, searchText);
+  // ✅ Handle status filter change
+  const handleStatusChange = (status) => {
+    console.log("📊 Status filter changed to:", status);
+    setSelectedStatus(status || "");
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchOrders(1, pagination.pageSize, searchText, status || "");
+  };
+
+  // ✅ Handle clear search and filters
+  const handleClearSearch = () => {
+    console.log("🧹 Clearing search and filters");
+    setSearchText("");
+    setSelectedStatus("");
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchOrders(1, pagination.pageSize, "", "");
   };
 
 
@@ -178,12 +205,21 @@ const OrderManagement = () => {
     toast.success(`Cập nhật trạng thái đơn hàng ${id} thành công`);
     setIsUpdateStatusModalVisible(false);
     setSelectedOrder(null);
-    fetchOrders(pagination.current, pagination.pageSize);
+    fetchOrders(pagination.current, pagination.pageSize, "", selectedStatus);
   };
 
   const handleCloseUpdateStatusModal = () => {
     setIsUpdateStatusModalVisible(false);
     setSelectedOrder(null);
+  };
+
+  // ✅ Handle copy ID
+  const handleCopyId = (id, type = 'Order') => {
+    navigator.clipboard.writeText(id).then(() => {
+      toast.success(`Đã sao chép ${type} ID: ${id}`);
+    }).catch(() => {
+      toast.error('Không thể sao chép ID');
+    });
   };
 
   const getStatusInfo = (status) => {
@@ -199,6 +235,8 @@ const OrderManagement = () => {
         return { color: '#52c41a', text: 'Đã giao', icon: <CheckCircleOutlined /> };
       case 'CANCELLED':
         return { color: '#ff4d4f', text: 'Đã hủy', icon: <StopOutlined /> };
+      case 'RETURNED':
+        return { color: '#722ed1', text: 'Đã hoàn trả', icon: <SyncOutlined /> };
       default:
         return { color: 'default', text: status?.description || 'Không xác định', icon: <QuestionCircleOutlined /> };
     }
@@ -210,9 +248,26 @@ const OrderManagement = () => {
       dataIndex: "order_id",
       key: "order_id",
       render: (order_id) => (
-        <Text strong style={{ color: '#0D364C' }}>
-          {order_id?.slice(-8)?.toUpperCase() || 'N/A'}
-        </Text>
+        <Space>
+          <Text
+            strong
+            style={{
+              color: '#0D364C',
+              cursor: 'pointer'
+            }}
+            onClick={() => handleCopyId(order_id)}
+            title={`Click để copy: ${order_id}`}
+          >
+            {order_id || 'N/A'}
+          </Text>
+          <Button
+            type="text"
+            size="small"
+            icon={<CopyOutlined />}
+            onClick={() => handleCopyId(order_id)}
+            style={{ color: '#13C2C2' }}
+          />
+        </Space>
       ),
     },
     {
@@ -225,7 +280,7 @@ const OrderManagement = () => {
             style={{ backgroundColor: '#13C2C2' }}
           />
           <div>
-            <Text strong style={{ color: '#0D364C', display: 'block' }}>
+            <Text strong style={{ color: '#0D364C', display: 'block', fontSize: '16px' }}>
               {record.receiver_name || 'N/A'}
             </Text>
             <Text type="secondary" style={{ fontSize: '12px' }}>
@@ -412,15 +467,43 @@ const OrderManagement = () => {
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <Input.Search
-            placeholder="Tìm kiếm đơn hàng..."
-            onChange={(e) => handleSearch(e.target.value)}
-            style={{ width: '320px', maxWidth: '100%' }}
-            size="large"
-            prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
-            allowClear
-            onSearch={(value) => handleSearch(value)}
-          />
+          <Space size="middle" style={{ flex: 1, flexWrap: 'wrap' }}>
+            <Input.Search
+              placeholder="Tìm kiếm theo ID đơn hàng, tên khách hàng, email..."
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              style={{ width: '320px', maxWidth: '100%' }}
+              size="large"
+              prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
+              allowClear
+              onSearch={(value) => handleSearch(value)}
+            />
+            <Select
+              placeholder="Lọc theo trạng thái"
+              style={{ width: '200px' }}
+              size="large"
+              allowClear
+              value={selectedStatus || undefined}
+              onChange={handleStatusChange}
+              options={[
+                { value: '', label: 'Tất cả trạng thái' },
+                { value: 'PENDING', label: 'Chờ xử lý' },
+                { value: 'CONFIRMED', label: 'Đã xác nhận' },
+                { value: 'SHIPPED', label: 'Đang giao' },
+                { value: 'DELIVERED', label: 'Đã giao' },
+                { value: 'CANCELLED', label: 'Đã hủy' },
+                { value: 'RETURNED', label: 'Đã hoàn trả' },
+              ]}
+            />
+            {(searchText || selectedStatus) && (
+              <Button
+                onClick={handleClearSearch}
+                style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }}
+              >
+                Xóa bộ lọc
+              </Button>
+            )}
+          </Space>
           <Button
             onClick={handleRefresh}
             icon={<SyncOutlined />}

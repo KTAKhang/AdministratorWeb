@@ -19,15 +19,17 @@ import {
 const API_BASE_URL = "https://youtube-fullstack-nodejs-forbeginer.onrender.com/api";
 
 // API function for fetching categories with new response structure
-const fetchCategories = async ({ page, limit }) => {
-    const response = await axios.get(
-        `${API_BASE_URL}/category?page=${page}&limit=${limit}`,
-        {
-            headers: {
-                accept: "*/*",
-            },
-        }
-    );
+const fetchCategories = async ({ page, limit, search }) => {
+    let url = `${API_BASE_URL}/category?page=${page}&limit=${limit}`;
+    if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+    }
+
+    const response = await axios.get(url, {
+        headers: {
+            accept: "*/*",
+        },
+    });
     return response.data;
 };
 
@@ -99,8 +101,8 @@ const deleteCategory = async ({ id, token }) => {
 
 function* handleFetchCategories(action) {
     try {
-        const { page = 1, limit = 12 } = action.payload;
-        const response = yield call(fetchCategories, { page, limit });
+        const { page = 1, limit = 12, search } = action.payload;
+        const response = yield call(fetchCategories, { page, limit, search });
 
         // Handle new API response structure
         const processedData = {

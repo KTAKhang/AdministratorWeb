@@ -16,7 +16,8 @@ import {
   Avatar,
   Tooltip,
   Alert,
-  Spin
+  Spin,
+  Select
 } from "antd";
 import {
   EditOutlined,
@@ -86,15 +87,22 @@ const CategoryManagement = () => {
     }
   }, [reduxPagination]);
 
-  // Handle search with debounce - fix dependency issue
-  const handleSearch = useCallback(
+  // Handle search with debounce 2 giây - API call only
+  const debouncedSearch = useCallback(
     debounce((value) => {
-      setSearchText(value);
+      console.log("🔍 Search API triggered for category:", value);
       setPagination(prev => ({ ...prev, current: 1 }));
-      fetchCategories(1, 5, value); // Use fixed pageSize to avoid dependency
-    }, 500),
+      fetchCategories(1, 5, value);
+    }, 2000), // API call after 2 seconds of no typing
     [fetchCategories]
   );
+
+  // Handle search input change - immediate UI update
+  const handleSearch = (value) => {
+    console.log("🔍 Search input changed:", value);
+    setSearchText(value); // Update UI immediately
+    debouncedSearch(value); // Debounced API call
+  };
 
   // Handle table change
   const handleTableChange = (paginationConfig, filters, sorter) => {
@@ -113,7 +121,15 @@ const CategoryManagement = () => {
 
   // Handle refresh
   const handleRefresh = () => {
+    console.log("🔄 Refreshing categories...");
     fetchCategories(pagination.current, pagination.pageSize, searchText);
+  };
+
+  // Clear search and filters
+  const handleClearSearch = () => {
+    setSearchText("");
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchCategories(1, 5, "");
   };
 
   // Statistics - use API statistics when available, fallback to client-side calculation
@@ -171,12 +187,20 @@ const CategoryManagement = () => {
             onError={() => false}
           />
           <div>
-            <Text strong style={{ color: '#0D364C', display: 'block' }}>
+            <Text strong style={{ color: '#0D364C', display: 'block', fontSize: '16px' }}>
               {record.name}
             </Text>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+            <Text
+              type="secondary"
+              style={{ fontSize: '12px', cursor: 'pointer' }}
+              onClick={() => {
+                navigator.clipboard.writeText(record._id);
+                toast.success('Đã copy ID vào clipboard');
+              }}
+              title="Click để copy ID đầy đủ"
+            >
               <AppstoreOutlined style={{ marginRight: '4px' }} />
-              ID: {record._id?.slice(-6) || 'N/A'}
+              ID: {record._id || 'N/A'}
             </Text>
           </div>
         </Space>
@@ -330,15 +354,26 @@ const CategoryManagement = () => {
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <Input.Search
-            placeholder="Tìm kiếm category..."
-            onChange={(e) => handleSearch(e.target.value)}
-            style={{ width: '320px', maxWidth: '100%' }}
-            size="large"
-            prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
-            allowClear
-            onSearch={(value) => handleSearch(value)}
-          />
+          <Space size="middle" style={{ flex: 1, flexWrap: 'wrap' }}>
+            <Input.Search
+              placeholder="Tìm kiếm theo tên category hoặc ID..."
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              style={{ width: '320px', maxWidth: '100%' }}
+              size="large"
+              prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
+              allowClear
+              onSearch={(value) => handleSearch(value)}
+            />
+            {searchText && (
+              <Button
+                onClick={handleClearSearch}
+                style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }}
+              >
+                Xóa bộ lọc
+              </Button>
+            )}
+          </Space>
           <Space>
             <Button
               onClick={handleRefresh}

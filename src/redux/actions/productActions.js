@@ -15,9 +15,9 @@ export const DELETE_PRODUCT_REQUEST = "DELETE_PRODUCT_REQUEST";
 export const DELETE_PRODUCT_SUCCESS = "DELETE_PRODUCT_SUCCESS";
 export const DELETE_PRODUCT_FAILURE = "DELETE_PRODUCT_FAILURE";
 
-export const fetchProductRequest = ({ page, limit }) => ({
+export const fetchProductRequest = ({ page, limit, search }) => ({
     type: FETCH_PRODUCT_REQUEST,
-    payload: { page, limit },
+    payload: { page, limit, search },
 });
 
 export const fetchProductSuccess = (data) => ({

@@ -16,7 +16,8 @@ import {
     Tooltip,
     Rate,
     Alert,
-    Spin
+    Spin,
+    Select
 } from "antd";
 import {
     EyeOutlined,
@@ -29,7 +30,8 @@ import {
     ExclamationCircleOutlined,
     CommentOutlined,
     ShoppingOutlined,
-    SyncOutlined
+    SyncOutlined,
+    CopyOutlined
 } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
@@ -126,18 +128,14 @@ const ReviewManagement = () => {
     const [isUpdateStatusModalVisible, setIsUpdateStatusModalVisible] = useState(false);
 
     const fetchReviews = useCallback((page = 1, pageSize = 5, search = "") => {
-        const requestPayload = {
-            page,
-            limit: pageSize,
-            ...(search && { search })
-        };
+        console.log('🔍 fetchReviews called with:', { page, pageSize, search });
 
-        dispatch(getAllReviews(requestPayload.page, requestPayload.limit, requestPayload.search || ''));
+        dispatch(getAllReviews(page, pageSize, search, ""));
     }, [dispatch]);
 
     // ✅ Load dữ liệu ban đầu
     useEffect(() => {
-        fetchReviews(1, 5);
+        fetchReviews(1, 5, "");
     }, []); // Chỉ chạy 1 lần khi mount
 
     // ✅ Sync Redux pagination với local state
@@ -153,19 +151,22 @@ const ReviewManagement = () => {
         }
     }, [reduxPagination]);
 
-    // ✅ Handle search
-    const handleSearch = useCallback(
+    // ✅ Handle search with 2 second debounce - API call only
+    const debouncedSearch = useCallback(
         debounce((value) => {
-            setSearchText(value);
-            setPagination(prev => {
-                const newPag = { ...prev, current: 1 };
-                return newPag;
-            });
-
+            console.log('🔍 Search API triggered:', value);
+            setPagination(prev => ({ ...prev, current: 1 }));
             fetchReviews(1, pagination.pageSize, value);
-        }, 500),
+        }, 2000), // API call after 2 seconds of no typing
         [fetchReviews, pagination.pageSize]
     );
+
+    // ✅ Handle search input change - immediate UI update
+    const handleSearch = (value) => {
+        console.log('🔍 Search input changed:', value);
+        setSearchText(value); // Update UI immediately
+        debouncedSearch(value); // Debounced API call
+    };
 
     // ✅ Handle table change
     const handleTableChange = (paginationConfig, filters, sorter) => {
@@ -187,6 +188,13 @@ const ReviewManagement = () => {
     // ✅ Handle refresh
     const handleRefresh = () => {
         fetchReviews(pagination.current, pagination.pageSize, searchText);
+    };
+
+    // ✅ Handle clear search and filters
+    const handleClearSearch = () => {
+        setSearchText("");
+        setPagination(prev => ({ ...prev, current: 1 }));
+        fetchReviews(1, pagination.pageSize, "");
     };
 
     // Statistics
@@ -224,6 +232,15 @@ const ReviewManagement = () => {
         setSelectedReview(null);
     };
 
+    // ✅ Handle copy ID
+    const handleCopyId = (id, type = 'Review') => {
+        navigator.clipboard.writeText(id).then(() => {
+            toast.success(`Đã sao chép ${type} ID: ${id}`);
+        }).catch(() => {
+            toast.error('Không thể sao chép ID');
+        });
+    };
+
     // Handle success/error messages
     useEffect(() => {
         if (error) {
@@ -240,6 +257,35 @@ const ReviewManagement = () => {
 
     const columns = [
         {
+            title: "ID",
+            dataIndex: "_id",
+            key: "_id",
+            width: 300,
+            render: (id) => (
+                <Space direction="horizontal" align="center">
+                    <Text
+                        code
+                        style={{
+                            fontSize: '12px',
+                            cursor: 'pointer',
+                            wordBreak: 'break-all'
+                        }}
+                        onClick={() => handleCopyId(id)}
+                        title={`Click để copy: ${id}`}
+                    >
+                        {id}
+                    </Text>
+                    <Button
+                        type="text"
+                        size="small"
+                        icon={<CopyOutlined />}
+                        onClick={() => handleCopyId(id)}
+                        style={{ color: '#13C2C2', flexShrink: 0 }}
+                    />
+                </Space>
+            ),
+        },
+        {
             title: "Khách hàng",
             key: "customer",
             render: (_, record) => (
@@ -254,7 +300,7 @@ const ReviewManagement = () => {
                         onError={() => false}
                     />
                     <div>
-                        <Text strong style={{ color: '#0D364C' }}>
+                        <Text strong style={{ color: '#0D364C', fontSize: '16px' }}>
                             {record.user_id?.user_name || 'N/A'}
                         </Text>
                         <div style={{ fontSize: '12px', color: '#888' }}>
@@ -275,7 +321,7 @@ const ReviewManagement = () => {
                         style={{ backgroundColor: '#13C2C2' }}
                     />
                     <div>
-                        <Text strong style={{ color: '#0D364C' }}>
+                        <Text strong style={{ color: '#0D364C', fontSize: '16px' }}>
                             {record.productDetail?.name || record.product_id?.name || 'N/A'}
                         </Text>
                         {record.productDetail?.price && (
@@ -306,25 +352,6 @@ const ReviewManagement = () => {
             ),
         },
         {
-            title: "Nội dung",
-            dataIndex: "comment",
-            key: "comment",
-            render: (comment) => (
-                <Text
-                    style={{
-                        maxWidth: '200px',
-                        display: 'block',
-                        overflow: 'hidden',
-                        textOverflow: 'ellipsis',
-                        whiteSpace: 'nowrap'
-                    }}
-                    title={comment}
-                >
-                    {comment || 'N/A'}
-                </Text>
-            ),
-        },
-        {
             title: "Trạng thái",
             dataIndex: "status",
             key: "status",
@@ -345,22 +372,6 @@ const ReviewManagement = () => {
                         </Tag>
                     }
                 />
-            )
-        },
-        {
-            title: "Ngày tạo",
-            dataIndex: "createdAt",
-            key: "createdAt",
-            render: (date) => (
-                <Text type="secondary">
-                    {date ? new Date(date).toLocaleDateString('vi-VN', {
-                        year: 'numeric',
-                        month: '2-digit',
-                        day: '2-digit',
-                        hour: '2-digit',
-                        minute: '2-digit'
-                    }) : 'N/A'}
-                </Text>
             )
         },
         {
@@ -472,15 +483,26 @@ const ReviewManagement = () => {
                     flexWrap: 'wrap',
                     gap: '16px'
                 }}>
-                    <Input.Search
-                        placeholder="Tìm kiếm review..."
-                        onChange={(e) => handleSearch(e.target.value)}
-                        style={{ width: '320px', maxWidth: '100%' }}
-                        size="large"
-                        prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
-                        allowClear
-                        onSearch={(value) => handleSearch(value)}
-                    />
+                    <Space size="middle" style={{ flex: 1, flexWrap: 'wrap' }}>
+                        <Input.Search
+                            placeholder="Tìm kiếm theo nội dung, tên người dùng hoặc email..."
+                            value={searchText}
+                            onChange={(e) => handleSearch(e.target.value)}
+                            style={{ width: '320px', maxWidth: '100%' }}
+                            size="large"
+                            prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
+                            allowClear
+                            onSearch={(value) => handleSearch(value)}
+                        />
+                        {searchText && (
+                            <Button
+                                onClick={handleClearSearch}
+                                style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }}
+                            >
+                                Xóa bộ lọc
+                            </Button>
+                        )}
+                    </Space>
                     <Button
                         onClick={handleRefresh}
                         icon={<SyncOutlined />}

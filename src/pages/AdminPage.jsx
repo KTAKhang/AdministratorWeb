@@ -19,6 +19,7 @@ import {
   getRevenueByMonthRequest,
   getCompleteDashboardRequest,
 } from "../redux/actions/dashboardActions";
+import { fetchOrderByStatusRequest } from "../redux/actions/orderActions";
 
 const { Text, Title } = Typography;
 
@@ -40,6 +41,10 @@ export default function AdminPage() {
     dashboardLoading,
   } = useSelector((state) => state.dashboard);
 
+  // Order selectors for pending orders count
+  const orderState = useSelector((state) => state.order);
+  const pendingOrdersCount = orderState.orders?.length || 0;
+
   // State for year selection
   const [selectedYear, setSelectedYear] = useState(2025);
 
@@ -58,6 +63,9 @@ export default function AdminPage() {
 
     // Only get revenue by month separately since it needs year parameter
     dispatch(getRevenueByMonthRequest(selectedYear));
+
+    // Get pending orders count
+    dispatch(fetchOrderByStatusRequest({ status: 'PENDING', page: 1, limit: 100 }));
   }, [dispatch, selectedYear]);
 
   // Function to handle year change
@@ -132,7 +140,7 @@ export default function AdminPage() {
     },
     {
       title: "Đơn hàng chờ xử lý",
-      value: 0, // Sẽ được cập nhật từ API sau
+      value: pendingOrdersCount,
       icon: <ClockCircleOutlined style={{ fontSize: 28 }} />,
       bgColor: "linear-gradient(135deg, #722ed1 0%, #531dab 100%)",
     },

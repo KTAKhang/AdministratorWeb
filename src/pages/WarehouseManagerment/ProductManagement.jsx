@@ -16,7 +16,8 @@ import {
   Avatar,
   Tooltip,
   Alert,
-  Spin
+  Spin,
+  Select
 } from "antd";
 import {
   EditOutlined,
@@ -87,15 +88,22 @@ const ProductManagement = () => {
     }
   }, [reduxPagination]);
 
-  // Handle search with debounce
-  const handleSearch = useCallback(
+  // Handle search with debounce 2 giây - API call only
+  const debouncedSearch = useCallback(
     debounce((value) => {
-      setSearchText(value);
+      console.log("🔍 Search API triggered for product:", value);
       setPagination(prev => ({ ...prev, current: 1 }));
-      fetchProducts(1, pagination.pageSize, value);
-    }, 500),
-    [fetchProducts, pagination.pageSize]
+      fetchProducts(1, 5, value);
+    }, 2000), // API call after 2 seconds of no typing
+    [fetchProducts]
   );
+
+  // Handle search input change - immediate UI update
+  const handleSearch = (value) => {
+    console.log("🔍 Search input changed:", value);
+    setSearchText(value); // Update UI immediately
+    debouncedSearch(value); // Debounced API call
+  };
 
   // Handle table change
   const handleTableChange = (paginationConfig, filters, sorter) => {
@@ -110,19 +118,22 @@ const ProductManagement = () => {
 
   // Handle refresh
   const handleRefresh = () => {
+    console.log("🔄 Refreshing products...");
     fetchProducts(pagination.current, pagination.pageSize, searchText);
   };
 
-  // Filter products based on search text
-  const filteredProducts = products.filter(product =>
-    product.name.toLowerCase().includes(searchText.toLowerCase())
-  );
+  // Clear search and filters
+  const handleClearSearch = () => {
+    setSearchText("");
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchProducts(1, 5, "");
+  };
 
   // Calculate statistics - use API statistics when available, fallback to client-side calculation
   const stats = {
-    total: statistics?.totalActive + statistics?.totalInactive || filteredProducts.length,
-    active: statistics?.totalActive || filteredProducts.filter(p => p.status).length,
-    inactive: statistics?.totalInactive || filteredProducts.filter(p => !p.status).length
+    total: statistics?.totalActive + statistics?.totalInactive || (Array.isArray(products) ? products.length : 0),
+    active: statistics?.totalActive || (Array.isArray(products) ? products.filter(p => p.status).length : 0),
+    inactive: statistics?.totalInactive || (Array.isArray(products) ? products.filter(p => !p.status).length : 0)
   };
 
   const handleCreateSuccess = () => {
@@ -173,12 +184,20 @@ const ProductManagement = () => {
             onError={() => false}
           />
           <div>
-            <Text strong style={{ color: '#0D364C', display: 'block' }}>
+            <Text strong style={{ color: '#0D364C', display: 'block', fontSize: '16px' }}>
               {record.name}
             </Text>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+            <Text
+              type="secondary"
+              style={{ fontSize: '12px', cursor: 'pointer' }}
+              onClick={() => {
+                navigator.clipboard.writeText(record._id);
+                toast.success('Đã copy ID vào clipboard');
+              }}
+              title="Click để copy ID đầy đủ"
+            >
               <ShoppingCartOutlined style={{ marginRight: '4px' }} />
-              ID: {record._id?.slice(-6) || 'N/A'}
+              ID: {record._id || 'N/A'}
             </Text>
           </div>
         </Space>
@@ -350,15 +369,26 @@ const ProductManagement = () => {
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <Input.Search
-            placeholder="Tìm kiếm sản phẩm..."
-            onChange={(e) => handleSearch(e.target.value)}
-            style={{ width: '320px', maxWidth: '100%' }}
-            size="large"
-            prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
-            allowClear
-            onSearch={(value) => handleSearch(value)}
-          />
+          <Space size="middle" style={{ flex: 1, flexWrap: 'wrap' }}>
+            <Input.Search
+              placeholder="Tìm kiếm theo tên sản phẩm hoặc ID..."
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              style={{ width: '320px', maxWidth: '100%' }}
+              size="large"
+              prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
+              allowClear
+              onSearch={(value) => handleSearch(value)}
+            />
+            {searchText && (
+              <Button
+                onClick={handleClearSearch}
+                style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }}
+              >
+                Xóa bộ lọc
+              </Button>
+            )}
+          </Space>
           <Space>
             <Button
               onClick={handleRefresh}
@@ -384,7 +414,7 @@ const ProductManagement = () => {
           <Table
             rowKey={(record) => record._id}
             columns={columns}
-            dataSource={filteredProducts || []}
+            dataSource={Array.isArray(products) ? products : []}
             pagination={{
               current: pagination.current,
               pageSize: pagination.pageSize,
