@@ -25,9 +25,9 @@ export const SET_USER_SEARCH_TEXT = "SET_USER_SEARCH_TEXT";
 export const SET_USER_PAGINATION = "SET_USER_PAGINATION";
 
 // Action creators
-export const getAllUsersRequest = (page = 1, limit = 10) => ({
+export const getAllUsersRequest = (page = 1, limit = 10, search = "") => ({
     type: GET_ALL_USERS_REQUEST,
-    payload: { page, limit },
+    payload: { page, limit, search },
 });
 
 export const getAllUsersSuccess = (data) => ({

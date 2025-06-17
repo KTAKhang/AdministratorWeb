@@ -145,6 +145,14 @@ function* handleUpdateOrder(action) {
         console.log("📦 Processed data for reducer:", processedData);
         yield put(updateOrderSuccess(processedData));
 
+        // Thông báo cho các tab khác về việc cập nhật order
+        try {
+            localStorage.setItem('orderUpdated', Date.now().toString());
+            console.log("📢 Order update notification sent to other tabs");
+        } catch (error) {
+            console.warn("⚠️ Could not notify other tabs:", error);
+        }
+
     } catch (error) {
         console.error("❌ Update order error:", error);
         const errorMessage = error.response?.data?.message || error.message;

@@ -15,19 +15,30 @@ import { updateOrderRequest } from "../../redux/actions/orderActions";
 const { Title, Text } = Typography;
 
 const sampleStatusOptions = [
-  { id: '682c6d66f938f5743e9f9361', name: 'Chờ xử lý', color: '#faad14' },
-  { id: '682c6e4b03ffc771169ec2ce', name: 'Đang xử lý', color: '#13C2C2' },
-  { id: '682c6e9b03ffc771169ec2cf', name: 'Đang giao', color: '#1890ff' },
-  { id: '682c6ec003ffc771169ec2d0', name: 'Đã giao', color: '#52c41a' },
-  { id: '682c6edc03ffc771169ec2d1', name: 'Đã hủy', color: '#ff4d4f' },
-  { id: '682c6f0603ffc771169ec2d2', name: 'Trả hàng', color: '#ff4d4f' },
+  { id: '682c6d66f938f5743e9f9361', name: 'Chờ xử lý', color: '#faad14', key: 'PENDING' },
+  { id: '682c6e4b03ffc771169ec2ce', name: 'Đang xử lý', color: '#13C2C2', key: 'PROCESSING' },
+  { id: '682c6e9b03ffc771169ec2cf', name: 'Đang giao', color: '#1890ff', key: 'SHIPPED' },
+  { id: '682c6ec003ffc771169ec2d0', name: 'Đã giao', color: '#52c41a', key: 'DELIVERED' },
+  { id: '682c6edc03ffc771169ec2d1', name: 'Đã hủy', color: '#ff4d4f', key: 'CANCELLED' },
+  { id: '682c6f0603ffc771169ec2d2', name: 'Trả hàng', color: '#ff4d4f', key: 'RETURNED' },
 ];
+
+// Định nghĩa luồng trạng thái hợp lệ
+const STATUS_FLOW_RULES = {
+  'PENDING': ['PROCESSING', 'CANCELLED'], // Chờ xử lý -> Đang xử lý hoặc Đã hủy
+  'PROCESSING': ['SHIPPED'], // Đang xử lý -> Đang giao
+  'SHIPPED': ['DELIVERED'], // Đang giao -> Đã giao
+  'DELIVERED': ['RETURNED'], // Đã giao -> Trả hàng
+  'CANCELLED': [], // Đã hủy -> Không thể chuyển đi đâu
+  'RETURNED': [], // Trả hàng -> Không thể chuyển đi đâu
+};
 
 const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   const [form] = Form.useForm();
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
+  const [currentStatusId, setCurrentStatusId] = useState(null);
   const previousStateRef = useRef({ updateLoading: false, updateError: null });
 
   // Get loading and error states from Redux
@@ -47,7 +58,42 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   // Reset form when modal opens
   useEffect(() => {
     if (visible && orderData) {
-      form.setFieldsValue({ order_status_id: orderData.order_status_id });
+      console.log('🔍 Debug orderData:', {
+        orderData,
+        order_status_id: orderData.order_status_id,
+        order_status: orderData.order_status,
+        order_status_name: orderData.order_status?.name,
+        order_status_description: orderData.order_status?.description
+      });
+
+      // Thử nhiều cách để lấy status ID để set vào form
+      let statusIdToSet = orderData.order_status_id;
+
+      // Nếu không có order_status_id, thử lấy từ order_status object
+      if (!statusIdToSet && orderData?.order_status?._id) {
+        statusIdToSet = orderData.order_status._id;
+      }
+
+      // Nếu vẫn không có, thử lấy từ order_status.id
+      if (!statusIdToSet && orderData?.order_status?.id) {
+        statusIdToSet = orderData.order_status.id;
+      }
+
+      // Nếu vẫn không có ID nhưng có name, tìm ID từ name
+      if (!statusIdToSet && orderData?.order_status?.name) {
+        const statusByName = sampleStatusOptions.find(status =>
+          status.name === orderData.order_status.name
+        );
+        statusIdToSet = statusByName?.id;
+      }
+
+      console.log('🔍 Status ID to set in form:', statusIdToSet);
+
+      // Set current status ID và form value
+      setCurrentStatusId(statusIdToSet);
+      form.setFieldsValue({ order_status_id: statusIdToSet });
+
+      console.log('🔍 Setting currentStatusId to:', statusIdToSet);
       setIsSubmitting(false);
       setHasShownToast(false);
       console.log('🔄 Modal opened, form reset');
@@ -123,12 +169,53 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   }, [updateLoading, updateError, isSubmitting, visible, hasShownToast, orders, orderData, form, onSuccess]);
 
   const handleFinish = (values) => {
+    const { order_status_id: newStatusId } = values;
+
+    // Lấy currentStatusId chính xác
+    let currentStatusId = orderData.order_status_id;
+
+    // Nếu không có order_status_id, thử lấy từ order_status object
+    if (!currentStatusId && orderData?.order_status?._id) {
+      currentStatusId = orderData.order_status._id;
+    }
+
+    // Nếu vẫn không có, thử lấy từ order_status.id
+    if (!currentStatusId && orderData?.order_status?.id) {
+      currentStatusId = orderData.order_status.id;
+    }
+
+    // Nếu vẫn không có ID nhưng có name, tìm ID từ name
+    if (!currentStatusId && orderData?.order_status?.name) {
+      const statusByName = sampleStatusOptions.find(status =>
+        status.name === orderData.order_status.name
+      );
+      currentStatusId = statusByName?.id;
+    }
+
     console.log('🚀 Submitting update:', {
       orderId: orderData.order_id,
-      currentStatus: orderData.order_status_id,
-      newStatus: values.order_status_id,
+      currentStatus: currentStatusId,
+      newStatus: newStatusId,
       values
     });
+
+    // Kiểm tra validation luồng trạng thái
+    if (!isStatusTransitionValid(currentStatusId, newStatusId)) {
+      const currentStatus = sampleStatusOptions.find(s => s.id === currentStatusId);
+      const newStatus = sampleStatusOptions.find(s => s.id === newStatusId);
+
+      toast.error(
+        `Không thể chuyển từ "${currentStatus?.name}" sang "${newStatus?.name}". ` +
+        `Vui lòng tuân thủ luồng trạng thái quy định.`
+      );
+      return;
+    }
+
+    // Nếu không có thay đổi trạng thái
+    if (currentStatusId === newStatusId) {
+      toast.warning('Trạng thái mới giống với trạng thái hiện tại.');
+      return;
+    }
 
     setIsSubmitting(true);
     setHasShownToast(false);
@@ -145,10 +232,91 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
 
   // Get current status name for display
   const getCurrentStatusName = () => {
-    const currentStatus = sampleStatusOptions.find(
-      status => status.id === orderData?.order_status_id
-    );
+    // Thử nhiều cách để lấy status
+    let statusId = orderData?.order_status_id;
+
+    // Nếu không có order_status_id, thử lấy từ order_status object
+    if (!statusId && orderData?.order_status?._id) {
+      statusId = orderData.order_status._id;
+    }
+
+    // Nếu vẫn không có, thử lấy từ order_status.id
+    if (!statusId && orderData?.order_status?.id) {
+      statusId = orderData.order_status.id;
+    }
+
+    console.log('🔍 getCurrentStatusName Debug:', {
+      statusId,
+      orderData_order_status_id: orderData?.order_status_id,
+      orderData_order_status: orderData?.order_status,
+      orderData_order_status_name: orderData?.order_status?.name
+    });
+
+    // Tìm trong sampleStatusOptions
+    let currentStatus = sampleStatusOptions.find(status => status.id === statusId);
+
+    // Nếu không tìm thấy trong sampleStatusOptions, thử trực tiếp từ orderData
+    if (!currentStatus && orderData?.order_status?.name) {
+      return orderData.order_status.name;
+    }
+
     return currentStatus?.name || 'Không xác định';
+  };
+
+  // Get current status key
+  const getCurrentStatusKey = () => {
+    // Thử nhiều cách để lấy status
+    let statusId = orderData?.order_status_id;
+
+    // Nếu không có order_status_id, thử lấy từ order_status object
+    if (!statusId && orderData?.order_status?._id) {
+      statusId = orderData.order_status._id;
+    }
+
+    // Nếu vẫn không có, thử lấy từ order_status.id
+    if (!statusId && orderData?.order_status?.id) {
+      statusId = orderData.order_status.id;
+    }
+
+    const currentStatus = sampleStatusOptions.find(status => status.id === statusId);
+
+    // Nếu không tìm thấy trong sampleStatusOptions, thử map từ name
+    if (!currentStatus && orderData?.order_status?.name) {
+      const statusByName = sampleStatusOptions.find(status =>
+        status.name === orderData.order_status.name
+      );
+      return statusByName?.key || '';
+    }
+
+    return currentStatus?.key || '';
+  };
+
+  // Get allowed next statuses based on current status
+  const getAllowedStatuses = () => {
+    const currentStatusKey = getCurrentStatusKey();
+    const allowedKeys = STATUS_FLOW_RULES[currentStatusKey] || [];
+
+    console.log('🔄 Status Flow Check:', {
+      currentStatusKey,
+      allowedKeys,
+      currentStatusId: orderData?.order_status_id
+    });
+
+    // Return the status options that are allowed
+    return sampleStatusOptions.filter(status =>
+      allowedKeys.includes(status.key)
+    );
+  };
+
+  // Validate if status transition is allowed
+  const isStatusTransitionValid = (fromStatusId, toStatusId) => {
+    const fromStatus = sampleStatusOptions.find(s => s.id === fromStatusId);
+    const toStatus = sampleStatusOptions.find(s => s.id === toStatusId);
+
+    if (!fromStatus || !toStatus) return false;
+
+    const allowedKeys = STATUS_FLOW_RULES[fromStatus.key] || [];
+    return allowedKeys.includes(toStatus.key);
   };
 
   return (
@@ -195,21 +363,7 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
         }}
       >
         <Space direction="vertical" size="large" style={{ width: '100%' }}>
-          {/* Debug Info - Remove in production */}
-          {process.env.NODE_ENV === 'development' && (
-            <div style={{
-              padding: '8px',
-              backgroundColor: '#f0f0f0',
-              borderRadius: '4px',
-              fontSize: '12px',
-              fontFamily: 'monospace'
-            }}>
-              <div>Loading: {updateLoading ? '✓' : '✗'}</div>
-              <div>Error: {updateError || 'None'}</div>
-              <div>Submitting: {isSubmitting ? '✓' : '✗'}</div>
-              <div>Toast Shown: {hasShownToast ? '✓' : '✗'}</div>
-            </div>
-          )}
+
 
           {/* Header */}
           <div style={{ textAlign: 'center' }}>
@@ -232,8 +386,23 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
               Đơn hàng #{orderData?.order_id?.slice(-8)}
             </Title>
             <Text type="secondary">
-              Trạng thái hiện tại: <strong>{getCurrentStatusName()}</strong>
+              Trạng thái hiện tại: <strong style={{ color: sampleStatusOptions.find(s => s.id === orderData?.order_status_id)?.color }}>{getCurrentStatusName()}</strong>
             </Text>
+
+            {/* Hiển thị thông tin luồng trạng thái */}
+            <div style={{
+              marginTop: '12px',
+              padding: '8px 12px',
+              backgroundColor: '#f6f8fa',
+              borderRadius: '6px',
+              border: '1px solid #e1e8ed'
+            }}>
+              <Text style={{ fontSize: '12px', color: '#666' }}>
+                💡 <strong>Quy tắc luồng trạng thái:</strong><br />
+                🔄 Chờ xử lý → Đang xử lý → Đang giao → Đã giao<br />
+                ❌ Chờ xử lý → Đã hủy | 🔄 Đã giao → Trả hàng
+              </Text>
+            </div>
           </div>
 
           <Divider style={{ borderColor: '#13C2C2', opacity: 0.3 }} />
@@ -244,6 +413,28 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
             onFinish={handleFinish}
             size="large"
           >
+            {/* Info về luồng trạng thái */}
+            <div style={{
+              padding: '12px 16px',
+              backgroundColor: '#e6f7ff',
+              border: '1px solid #91d5ff',
+              borderRadius: '8px',
+              marginBottom: '16px'
+            }}>
+              <div style={{ fontSize: '14px', color: '#0050b3', fontWeight: '500', marginBottom: '8px' }}>
+                📋 Luồng trạng thái cho phép:
+              </div>
+              <div style={{ fontSize: '12px', color: '#0050b3', lineHeight: '1.6' }}>
+                {(() => {
+                  const allowedStatuses = getAllowedStatuses();
+                  if (allowedStatuses.length === 0) {
+                    return '❌ Không thể chuyển sang trạng thái nào khác.';
+                  }
+                  return `✅ Có thể chuyển sang: ${allowedStatuses.map(s => s.name).join(', ')}`;
+                })()}
+              </div>
+            </div>
+
             <Form.Item
               label={
                 <Space>
@@ -253,37 +444,63 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
                   </span>
                 </Space>
               }
-              name="order_status_id"
+              name="order_status_name"
               rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
             >
               <Select
                 placeholder="Chọn trạng thái đơn hàng"
                 style={{ width: '100%' }}
                 disabled={updateLoading}
-                options={sampleStatusOptions.map(status => ({
-                  value: status.id,
-                  label: (
-                    <span style={{ color: status.color, fontWeight: '500' }}>
-                      {status.name}
-                    </span>
-                  )
-                }))}
-                optionRender={(option) => (
-                  <div style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 8
-                  }}>
-                    <div style={{
-                      width: 8,
-                      height: 8,
-                      borderRadius: '50%',
-                      backgroundColor: sampleStatusOptions.find(s => s.id === option.value)?.color
-                    }} />
-                    <span>{option.label}</span>
-                  </div>
-                )}
-              />
+                showSearch={false}
+                value={(() => {
+                  // Hiển thị tên trạng thái thay vì ID
+                  const status = sampleStatusOptions.find(s => s.id === currentStatusId);
+                  return status ? status.name : currentStatusId;
+                })()}
+                onChange={(value) => {
+                  // Tìm lại ID từ tên được chọn
+                  const selectedStatus = sampleStatusOptions.find(s => s.name === value);
+                  const statusId = selectedStatus ? selectedStatus.id : value;
+
+                  setCurrentStatusId(statusId);
+                  form.setFieldsValue({ order_status_id: statusId });
+                }}
+              >
+                {(() => {
+                  const allowedStatuses = getAllowedStatuses();
+                  if (allowedStatuses.length === 0) {
+                    return (
+                      <Select.Option value={null} disabled>
+                        <span style={{ color: '#999', fontStyle: 'italic' }}>
+                          Không có trạng thái nào khả dụng
+                        </span>
+                      </Select.Option>
+                    );
+                  }
+                  return allowedStatuses.map(status => (
+                    <Select.Option
+                      key={status.id}
+                      value={status.name}
+                    >
+                      <div style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 8
+                      }}>
+                        <div style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: '50%',
+                          backgroundColor: status.color
+                        }} />
+                        <span style={{ color: status.color, fontWeight: '500' }}>
+                          {status.name}
+                        </span>
+                      </div>
+                    </Select.Option>
+                  ));
+                })()}
+              </Select>
             </Form.Item>
 
             <Divider style={{ borderColor: '#13C2C2', opacity: 0.3 }} />
@@ -310,18 +527,20 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
                   type="primary"
                   htmlType="submit"
                   loading={updateLoading}
+                  disabled={updateLoading || getAllowedStatuses().length === 0}
                   icon={<SaveOutlined />}
                   size="large"
                   style={{
-                    backgroundColor: updateLoading ? '#94a3b8' : '#13C2C2',
-                    borderColor: updateLoading ? '#94a3b8' : '#13C2C2',
+                    backgroundColor: updateLoading || getAllowedStatuses().length === 0 ? '#94a3b8' : '#13C2C2',
+                    borderColor: updateLoading || getAllowedStatuses().length === 0 ? '#94a3b8' : '#13C2C2',
                     height: '44px',
                     borderRadius: '8px',
                     fontWeight: '600',
                     minWidth: '140px'
                   }}
                 >
-                  {updateLoading ? 'Đang cập nhật...' : 'Cập nhật'}
+                  {updateLoading ? 'Đang cập nhật...' :
+                    getAllowedStatuses().length === 0 ? 'Không thể cập nhật' : 'Cập nhật'}
                 </Button>
               </Space>
             </Form.Item>

@@ -30,10 +30,9 @@ export const fetchProductFailure = (error) => ({
     payload: error,
 });
 
-// FIX: Sửa để nhận đúng tham số như saga mong đợi
-export const createProductRequest = (formData, onSuccess) => ({
+export const createProductRequest = (payload) => ({
     type: CREATE_PRODUCT_REQUEST,
-    payload: { formData, onSuccess },
+    payload,
 });
 
 export const createProductSuccess = (data) => ({

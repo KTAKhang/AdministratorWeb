@@ -63,18 +63,6 @@ const calculateStats = (users) => ({
     inactive: users.filter(user => !user.status).length,
 });
 
-// Helper function to filter users
-const filterUsers = (users, searchText) => {
-    if (!searchText) return users;
-
-    const lowercaseSearch = searchText.toLowerCase();
-    return users.filter(user =>
-        user.user_name?.toLowerCase().includes(lowercaseSearch) ||
-        user.email?.toLowerCase().includes(lowercaseSearch) ||
-        user.role_name?.toLowerCase().includes(lowercaseSearch)
-    );
-};
-
 const userReducer = (state = initialState, action) => {
     switch (action.type) {
         case GET_ALL_USERS_REQUEST:
@@ -87,22 +75,24 @@ const userReducer = (state = initialState, action) => {
         case GET_ALL_USERS_SUCCESS:
             const { data, pagination } = action.payload;
             const users = data.users || [];
-            const filteredUsers = filterUsers(users, state.searchText);
+
+            // Khi sử dụng server-side search, không cần filter client-side nữa
+            // Server đã trả về kết quả đã được filter
 
             // Use API statistics when available, fallback to client-side calculation
             const apiStats = data.total || {};
             const clientStats = calculateStats(users);
             const finalStats = {
-                total: apiStats.totalActive + apiStats.totalInactive || clientStats.total,
+                total: apiStats.totalUser || clientStats.total,
                 active: apiStats.totalActive || clientStats.active,
                 inactive: apiStats.totalInactive || clientStats.inactive,
             };
 
             return {
                 ...state,
-                users: filteredUsers,
-                allUsers: users,
-                filteredUsers,
+                users: users, // Server đã filter, dùng trực tiếp
+                allUsers: users, // Cập nhật allUsers với kết quả từ server
+                filteredUsers: users, // Giống users vì đã được filter từ server
                 loading: false,
                 error: null,
                 pagination: {
@@ -170,7 +160,6 @@ const userReducer = (state = initialState, action) => {
             const updatedUsers = state.allUsers.map(user =>
                 user._id === updatedUser._id ? updatedUser : user
             );
-            const updatedFilteredUsers = filterUsers(updatedUsers, state.searchText);
 
             // Update statistics when user is updated
             const oldUser = state.allUsers.find(user => user._id === updatedUser._id);
@@ -191,8 +180,8 @@ const userReducer = (state = initialState, action) => {
             return {
                 ...state,
                 allUsers: updatedUsers,
-                users: updatedFilteredUsers,
-                filteredUsers: updatedFilteredUsers,
+                users: updatedUsers, // Cập nhật luôn users vì không cần filter client-side
+                filteredUsers: updatedUsers,
                 userDetail: updatedUser, // Update detail if viewing the same user
                 updateLoading: false,
                 updateError: null,
@@ -221,13 +210,11 @@ const userReducer = (state = initialState, action) => {
 
         case SET_USER_SEARCH_TEXT:
             const searchText = action.payload;
-            const newFilteredUsers = filterUsers(state.allUsers, searchText);
-
+            // Chỉ cập nhật searchText, không filter client-side nữa
+            // Việc search sẽ được handle bởi API call mới
             return {
                 ...state,
                 searchText,
-                users: newFilteredUsers,
-                filteredUsers: newFilteredUsers,
                 pagination: {
                     ...state.pagination,
                     current: 1, // Reset to first page when searching

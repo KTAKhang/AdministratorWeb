@@ -34,12 +34,23 @@ const fetchCategories = async ({ page, limit, search }) => {
 };
 
 // API function for creating category
-const createCategory = async ({ name, image, token, status }) => {
+const createCategory = async ({ name, image, token }) => {
+    console.log('🚀 Creating category with API call:', {
+        name,
+        imageName: image?.name,
+        imageSize: image?.size,
+        imageType: image?.type,
+        hasToken: !!token
+    });
+
     const formData = new FormData();
     formData.append('name', name);
     formData.append('image', image);
-    if (status !== undefined) {
-        formData.append('status', status);
+
+    // Log FormData contents
+    console.log('📦 FormData contents:');
+    for (let [key, value] of formData.entries()) {
+        console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
     }
 
     const response = await axios.post(
@@ -53,6 +64,8 @@ const createCategory = async ({ name, image, token, status }) => {
             },
         }
     );
+
+    console.log('✅ API Response:', response.data);
     return response.data;
 };
 
@@ -134,11 +147,56 @@ function* handleFetchCategories(action) {
 
 function* handleCreateCategory(action) {
     try {
-        const { name, image, token, status } = action.payload;
-        const data = yield call(createCategory, { name, image, token, status });
+        const { name, image, token } = action.payload;
+
+        // Add validation logging
+        console.log('🔧 Category creation payload:', {
+            name,
+            hasImage: !!image,
+            imageName: image?.name,
+            imageSize: image?.size,
+            imageType: image?.type,
+            hasToken: !!token
+        });
+
+        if (!name || !image || !token) {
+            throw new Error('Missing required fields: name, image, or token');
+        }
+
+        const data = yield call(createCategory, { name, image, token });
+        console.log('✅ Category created successfully:', data);
         yield put(createCategorySuccess(data));
     } catch (error) {
-        const errorMessage = error.response?.data?.message || error.message;
+        console.error('❌ Category creation failed:', {
+            message: error.message,
+            response: error.response?.data,
+            status: error.response?.status
+        });
+
+        // Extract meaningful error message
+        let errorMessage = 'Có lỗi xảy ra khi tạo category';
+
+        if (error.response?.data) {
+            if (typeof error.response.data === 'string') {
+                errorMessage = error.response.data;
+            } else if (error.response.data.message) {
+                errorMessage = error.response.data.message;
+            } else if (error.response.data.error) {
+                errorMessage = error.response.data.error;
+            }
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
+        // Handle specific error cases
+        if (errorMessage.toLowerCase().includes('already exists')) {
+            errorMessage = 'Tên category này đã tồn tại. Vui lòng chọn tên khác.';
+        } else if (errorMessage.toLowerCase().includes('required')) {
+            errorMessage = 'Thiếu thông tin bắt buộc. Vui lòng kiểm tra lại.';
+        } else if (errorMessage.toLowerCase().includes('invalid')) {
+            errorMessage = 'Dữ liệu không hợp lệ. Vui lòng kiểm tra lại.';
+        }
+
         yield put(createCategoryFailure(errorMessage));
     }
 }

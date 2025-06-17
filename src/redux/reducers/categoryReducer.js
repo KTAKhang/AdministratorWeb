@@ -45,28 +45,38 @@ const categoryReducer = (state = initialState, action) => {
                 loading: true,
                 error: null,
             };
-        case FETCH_CATEGORY_SUCCESS:
+
+        case FETCH_CATEGORY_SUCCESS: {
+            const payload = action.payload;
+            const categories = payload?.data?.categories || [];
+            const total = payload?.data?.total || {};
+            const pagination = payload?.pagination || {};
+
             return {
                 ...state,
                 loading: false,
-                categories: action.payload.data.categories || [],
+                error: null,
+                categories,
                 pagination: {
-                    page: action.payload.pagination?.page || action.payload.data.total?.currentPage || 1,
-                    limit: action.payload.pagination?.limit || 12,
-                    totalPages: action.payload.pagination?.totalPages || action.payload.data.total?.totalPage || 1,
-                    totalCategory: action.payload.data.total?.totalCategory || 0,
+                    page: pagination.page || total.currentPage || 1,
+                    limit: pagination.limit || 12,
+                    totalPages: pagination.totalPages || total.totalPage || 1,
+                    totalCategory: total.totalCategory || 0,
                 },
                 statistics: {
-                    totalActive: action.payload.data.total?.totalActive || 0,
-                    totalInactive: action.payload.data.total?.totalInactive || 0,
-                    currentPage: action.payload.data.total?.currentPage || 1,
+                    totalActive: total.totalActive || 0,
+                    totalInactive: total.totalInactive || 0,
+                    currentPage: total.currentPage || 1,
                 },
             };
+        }
+
         case FETCH_CATEGORY_FAILURE:
             return {
                 ...state,
                 loading: false,
                 error: action.payload,
+                categories: [], // Reset categories on error
             };
 
         // Create Category Cases
@@ -76,22 +86,44 @@ const categoryReducer = (state = initialState, action) => {
                 createLoading: true,
                 createError: null,
             };
-        case CREATE_CATEGORY_SUCCESS:
-            const newCategory = action.payload.data;
+
+        case CREATE_CATEGORY_SUCCESS: {
+            const newCategory = action.payload?.data;
+            if (!newCategory) {
+                return {
+                    ...state,
+                    createLoading: false,
+                };
+            }
+
+            const isNewCategoryActive = Boolean(newCategory.status);
+
+            // FIX: Không thêm category vào danh sách hiện tại nữa
+            // Vì component sẽ gọi lại API để fetch data mới
+            // Điều này tránh việc mismatch giữa local state và server state
             return {
                 ...state,
                 createLoading: false,
-                categories: [newCategory, ...state.categories],
+                createError: null,
+                // Không update categories array ở đây
+                // Component sẽ tự động fetch lại data từ server
                 pagination: {
                     ...state.pagination,
+                    // Tăng total count để phản ánh có thêm category mới
                     totalCategory: state.pagination.totalCategory + 1,
                 },
                 statistics: {
                     ...state.statistics,
-                    totalActive: newCategory.status ? state.statistics.totalActive + 1 : state.statistics.totalActive,
-                    totalInactive: !newCategory.status ? state.statistics.totalInactive + 1 : state.statistics.totalInactive,
+                    totalActive: isNewCategoryActive
+                        ? state.statistics.totalActive + 1
+                        : state.statistics.totalActive,
+                    totalInactive: !isNewCategoryActive
+                        ? state.statistics.totalInactive + 1
+                        : state.statistics.totalInactive,
                 },
             };
+        }
+
         case CREATE_CATEGORY_FAILURE:
             return {
                 ...state,
@@ -106,26 +138,44 @@ const categoryReducer = (state = initialState, action) => {
                 updateLoading: true,
                 updateError: null,
             };
-        case UPDATE_CATEGORY_SUCCESS:
-            const updatedCategory = action.payload.data;
+
+        case UPDATE_CATEGORY_SUCCESS: {
+            const updatedCategory = action.payload?.data;
+            if (!updatedCategory || !updatedCategory._id) {
+                return {
+                    ...state,
+                    updateLoading: false,
+                };
+            }
+
             const oldCategory = state.categories.find(cat => cat._id === updatedCategory._id);
+            const updatedCategories = state.categories.map(category =>
+                category._id === updatedCategory._id ? { ...category, ...updatedCategory } : category
+            );
+
+            // Tính toán thống kê mới
+            let newStatistics = { ...state.statistics };
+            if (oldCategory && oldCategory.status !== updatedCategory.status) {
+                if (updatedCategory.status) {
+                    // Chuyển từ inactive sang active
+                    newStatistics.totalActive = state.statistics.totalActive + 1;
+                    newStatistics.totalInactive = Math.max(0, state.statistics.totalInactive - 1);
+                } else {
+                    // Chuyển từ active sang inactive
+                    newStatistics.totalActive = Math.max(0, state.statistics.totalActive - 1);
+                    newStatistics.totalInactive = state.statistics.totalInactive + 1;
+                }
+            }
 
             return {
                 ...state,
                 updateLoading: false,
-                categories: state.categories.map(category =>
-                    category._id === updatedCategory._id ? updatedCategory : category
-                ),
-                statistics: {
-                    ...state.statistics,
-                    totalActive: oldCategory && oldCategory.status !== updatedCategory.status
-                        ? (updatedCategory.status ? state.statistics.totalActive + 1 : state.statistics.totalActive - 1)
-                        : state.statistics.totalActive,
-                    totalInactive: oldCategory && oldCategory.status !== updatedCategory.status
-                        ? (!updatedCategory.status ? state.statistics.totalInactive + 1 : state.statistics.totalInactive - 1)
-                        : state.statistics.totalInactive,
-                },
+                updateError: null,
+                categories: updatedCategories,
+                statistics: newStatistics,
             };
+        }
+
         case UPDATE_CATEGORY_FAILURE:
             return {
                 ...state,
@@ -140,22 +190,34 @@ const categoryReducer = (state = initialState, action) => {
                 deleteLoading: true,
                 deleteError: null,
             };
-        case DELETE_CATEGORY_SUCCESS:
-            const deletedCategory = state.categories.find(cat => cat._id === action.payload);
+
+        case DELETE_CATEGORY_SUCCESS: {
+            const deletedId = action.payload;
+            const deletedCategory = state.categories.find(cat => cat._id === deletedId);
+            const filteredCategories = state.categories.filter(category => category._id !== deletedId);
+
+            let newStatistics = { ...state.statistics };
+            if (deletedCategory) {
+                if (deletedCategory.status) {
+                    newStatistics.totalActive = Math.max(0, state.statistics.totalActive - 1);
+                } else {
+                    newStatistics.totalInactive = Math.max(0, state.statistics.totalInactive - 1);
+                }
+            }
+
             return {
                 ...state,
                 deleteLoading: false,
-                categories: state.categories.filter(category => category._id !== action.payload),
+                deleteError: null,
+                categories: filteredCategories,
                 pagination: {
                     ...state.pagination,
-                    totalCategory: state.pagination.totalCategory - 1,
+                    totalCategory: Math.max(0, state.pagination.totalCategory - 1),
                 },
-                statistics: {
-                    ...state.statistics,
-                    totalActive: deletedCategory && deletedCategory.status ? state.statistics.totalActive - 1 : state.statistics.totalActive,
-                    totalInactive: deletedCategory && !deletedCategory.status ? state.statistics.totalInactive - 1 : state.statistics.totalInactive,
-                },
+                statistics: newStatistics,
             };
+        }
+
         case DELETE_CATEGORY_FAILURE:
             return {
                 ...state,

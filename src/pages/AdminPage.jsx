@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import { Card, Row, Col, Statistic, Typography, Progress, Badge, Avatar, Spin, Input, Button } from "antd";
 import {
@@ -18,6 +18,9 @@ import {
 import {
   getRevenueByMonthRequest,
   getCompleteDashboardRequest,
+  getRevenueByDateRequest,
+  getSalesByDateRequest,
+  getNewCustomersRequest,
 } from "../redux/actions/dashboardActions";
 import { fetchOrderByStatusRequest } from "../redux/actions/orderActions";
 
@@ -43,7 +46,9 @@ export default function AdminPage() {
 
   // Order selectors for pending orders count
   const orderState = useSelector((state) => state.order);
-  const pendingOrdersCount = orderState.orders?.length || 0;
+  const pendingOrdersCount = orderState.orders?.filter(order =>
+    order.order_status?.name === 'PENDING'
+  )?.length || 0;
 
   // State for year selection
   const [selectedYear, setSelectedYear] = useState(2025);
@@ -54,12 +59,39 @@ export default function AdminPage() {
     return today.toISOString().split('T')[0];
   };
 
-  // Load dashboard data on component mount
-  useEffect(() => {
+  // Helper function to get tomorrow's date in YYYY-MM-DD format
+  const getTomorrowDate = () => {
+    const tomorrow = new Date();
+    tomorrow.setDate(tomorrow.getDate() + 1);
+    return tomorrow.toISOString().split('T')[0];
+  };
+
+  // Helper function to compare dates safely
+  const isSameDate = (date1, date2) => {
+    if (!date1 || !date2) return false;
+    try {
+      const d1 = new Date(date1).toISOString().split('T')[0];
+      const d2 = new Date(date2).toISOString().split('T')[0];
+      return d1 === d2;
+    } catch (error) {
+      console.error('Date comparison error:', error);
+      return false;
+    }
+  };
+
+  // Function to refresh dashboard data
+  const refreshDashboardData = useCallback(() => {
     const today = getCurrentDate();
+    const tomorrow = getTomorrowDate();
 
     // Use complete dashboard API to get most data in one call
-    dispatch(getCompleteDashboardRequest(today, today));
+    // API cần từ hôm nay đến ngày mai để lấy được dữ liệu hôm nay
+    dispatch(getCompleteDashboardRequest(today, tomorrow));
+
+    // Gọi riêng lẻ các API để đảm bảo có đủ dữ liệu
+    dispatch(getRevenueByDateRequest(today, tomorrow));
+    dispatch(getSalesByDateRequest(today, tomorrow));
+    dispatch(getNewCustomersRequest(today, tomorrow));
 
     // Only get revenue by month separately since it needs year parameter
     dispatch(getRevenueByMonthRequest(selectedYear));
@@ -67,6 +99,38 @@ export default function AdminPage() {
     // Get pending orders count
     dispatch(fetchOrderByStatusRequest({ status: 'PENDING', page: 1, limit: 100 }));
   }, [dispatch, selectedYear]);
+
+  // Load dashboard data on component mount
+  useEffect(() => {
+    refreshDashboardData();
+  }, [refreshDashboardData]);
+
+  // Listen for order updates from other tabs
+  useEffect(() => {
+    const handleStorageChange = (event) => {
+      // Lắng nghe sự kiện cập nhật đơn hàng từ các tab khác
+      if (event.key === 'orderUpdated' && event.newValue) {
+        console.log('📢 Order updated in another tab, refreshing dashboard...');
+        refreshDashboardData();
+        // Clear the flag để tránh trigger nhiều lần
+        localStorage.removeItem('orderUpdated');
+      }
+    };
+
+    // Lắng nghe sự kiện storage change
+    window.addEventListener('storage', handleStorageChange);
+
+    // Auto refresh every 30 seconds để đảm bảo dữ liệu luôn mới
+    const autoRefreshInterval = setInterval(() => {
+      console.log('🔄 Auto refreshing dashboard data...');
+      refreshDashboardData();
+    }, 30000);
+
+    return () => {
+      window.removeEventListener('storage', handleStorageChange);
+      clearInterval(autoRefreshInterval);
+    };
+  }, [refreshDashboardData]);
 
   // Function to handle year change
   const handleYearChange = () => {
@@ -97,22 +161,64 @@ export default function AdminPage() {
 
   // Get today's actual data from API
   const getTodayRevenue = () => {
+    console.log('🔍 Revenue By Date Debug:', {
+      revenueByDate,
+      length: revenueByDate?.length,
+      today: getCurrentDate()
+    });
+
     if (revenueByDate && revenueByDate.length > 0) {
-      return revenueByDate[0].totalRevenue || 0;
+      // Tìm dữ liệu của hôm nay (có thể có nhiều ngày trong response)
+      const today = getCurrentDate();
+      const todayData = revenueByDate.find(item => {
+        const isToday = isSameDate(item.date, today);
+        console.log('🔍 Comparing revenue dates:', { itemDate: item.date, today, isToday, item });
+        return isToday;
+      });
+      console.log('🔍 Today Revenue Data:', todayData);
+      return todayData?.totalRevenue || 0;
     }
     return 0;
   };
 
   const getTodayNewCustomers = () => {
+    console.log('🔍 New Customers Debug:', {
+      newCustomers,
+      length: newCustomers?.length,
+      today: getCurrentDate()
+    });
+
     if (newCustomers && newCustomers.length > 0) {
-      return newCustomers[0].newCustomers || 0;
+      // Tìm dữ liệu của hôm nay
+      const today = getCurrentDate();
+      const todayData = newCustomers.find(item => {
+        const isToday = isSameDate(item.date, today);
+        console.log('🔍 Comparing new customers dates:', { itemDate: item.date, today, isToday, item });
+        return isToday;
+      });
+      console.log('🔍 Today New Customers Data:', todayData);
+      return todayData?.newCustomers || todayData?.newCustomerCount || todayData?.count || todayData?.totalNewCustomers || 0;
     }
     return 0;
   };
 
   const getTodaySales = () => {
+    console.log('🔍 Sales By Date Debug:', {
+      salesByDate,
+      length: salesByDate?.length,
+      today: getCurrentDate()
+    });
+
     if (salesByDate && salesByDate.length > 0) {
-      return salesByDate[0].totalOrders || 0;
+      // Tìm dữ liệu của hôm nay
+      const today = getCurrentDate();
+      const todayData = salesByDate.find(item => {
+        const isToday = isSameDate(item.date, today);
+        console.log('🔍 Comparing sales dates:', { itemDate: item.date, today, isToday, item });
+        return isToday;
+      });
+      console.log('🔍 Today Sales Data:', todayData);
+      return todayData?.totalSoldQuantity || todayData?.totalOrders || todayData?.totalAmount || todayData?.orderCount || 0;
     }
     return 0;
   };
