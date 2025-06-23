@@ -169,7 +169,9 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   }, [updateLoading, updateError, isSubmitting, visible, hasShownToast, orders, orderData, form, onSuccess]);
 
   const handleFinish = (values) => {
+    console.log('🎯 HandleFinish values:', values);
     const { order_status_id: newStatusId } = values;
+    console.log('🎯 NewStatusId from values:', newStatusId);
 
     // Lấy currentStatusId chính xác
     let currentStatusId = orderData.order_status_id;
@@ -203,6 +205,15 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
     if (!isStatusTransitionValid(currentStatusId, newStatusId)) {
       const currentStatus = sampleStatusOptions.find(s => s.id === currentStatusId);
       const newStatus = sampleStatusOptions.find(s => s.id === newStatusId);
+
+      console.log('❌ Status transition validation failed:', {
+        currentStatusId,
+        newStatusId,
+        currentStatus,
+        newStatus,
+        currentStatusName: currentStatus?.name,
+        newStatusName: newStatus?.name
+      });
 
       toast.error(
         `Không thể chuyển từ "${currentStatus?.name}" sang "${newStatus?.name}". ` +
@@ -285,8 +296,15 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
       const statusByName = sampleStatusOptions.find(status =>
         status.name === orderData.order_status.name
       );
+      console.log('🔍 getCurrentStatusKey - Found by name:', statusByName);
       return statusByName?.key || '';
     }
+
+    console.log('🔍 getCurrentStatusKey result:', {
+      statusId,
+      currentStatus,
+      statusKey: currentStatus?.key
+    });
 
     return currentStatus?.key || '';
   };
@@ -303,9 +321,13 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
     });
 
     // Return the status options that are allowed
-    return sampleStatusOptions.filter(status =>
+    const allowedStatuses = sampleStatusOptions.filter(status =>
       allowedKeys.includes(status.key)
     );
+
+    console.log('🔄 Allowed statuses:', allowedStatuses);
+
+    return allowedStatuses;
   };
 
   // Validate if status transition is allowed
@@ -313,10 +335,26 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
     const fromStatus = sampleStatusOptions.find(s => s.id === fromStatusId);
     const toStatus = sampleStatusOptions.find(s => s.id === toStatusId);
 
-    if (!fromStatus || !toStatus) return false;
+    console.log('🔄 isStatusTransitionValid check:', {
+      fromStatusId,
+      toStatusId,
+      fromStatus,
+      toStatus,
+      fromStatusKey: fromStatus?.key,
+      toStatusKey: toStatus?.key
+    });
+
+    if (!fromStatus || !toStatus) {
+      console.log('❌ fromStatus or toStatus not found');
+      return false;
+    }
 
     const allowedKeys = STATUS_FLOW_RULES[fromStatus.key] || [];
-    return allowedKeys.includes(toStatus.key);
+    console.log('✅ Allowed keys for', fromStatus.key, ':', allowedKeys);
+    const isValid = allowedKeys.includes(toStatus.key);
+    console.log('✅ Is transition valid?', isValid);
+
+    return isValid;
   };
 
   return (
@@ -444,7 +482,7 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
                   </span>
                 </Space>
               }
-              name="order_status_name"
+              name="order_status_id"
               rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
             >
               <Select
@@ -452,18 +490,8 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
                 style={{ width: '100%' }}
                 disabled={updateLoading}
                 showSearch={false}
-                value={(() => {
-                  // Hiển thị tên trạng thái thay vì ID
-                  const status = sampleStatusOptions.find(s => s.id === currentStatusId);
-                  return status ? status.name : currentStatusId;
-                })()}
                 onChange={(value) => {
-                  // Tìm lại ID từ tên được chọn
-                  const selectedStatus = sampleStatusOptions.find(s => s.name === value);
-                  const statusId = selectedStatus ? selectedStatus.id : value;
-
-                  setCurrentStatusId(statusId);
-                  form.setFieldsValue({ order_status_id: statusId });
+                  setCurrentStatusId(value);
                 }}
               >
                 {(() => {
@@ -480,7 +508,7 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
                   return allowedStatuses.map(status => (
                     <Select.Option
                       key={status.id}
-                      value={status.name}
+                      value={status.id}
                     >
                       <div style={{
                         display: 'flex',

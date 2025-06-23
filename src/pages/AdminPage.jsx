@@ -120,15 +120,8 @@ export default function AdminPage() {
     // Lắng nghe sự kiện storage change
     window.addEventListener('storage', handleStorageChange);
 
-    // Auto refresh every 30 seconds để đảm bảo dữ liệu luôn mới
-    const autoRefreshInterval = setInterval(() => {
-      console.log('🔄 Auto refreshing dashboard data...');
-      refreshDashboardData();
-    }, 30000);
-
     return () => {
       window.removeEventListener('storage', handleStorageChange);
-      clearInterval(autoRefreshInterval);
     };
   }, [refreshDashboardData]);
 
