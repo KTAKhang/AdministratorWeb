@@ -30,12 +30,18 @@ const getAuthHeader = () => {
 };
 
 // Fetch products with new API structure
-const fetchProducts = async ({ page = 1, limit = 12 }) => {
+const fetchProducts = async ({ page = 1, limit = 12, search }) => {
     const token = localStorage.getItem('token');
-    const response = await axios.get(`${API_BASE_URL}/product?page=${page}&limit=${limit}`, {
+
+    let url = `${API_BASE_URL}/product?page=${page}&limit=${limit}`;
+    if (search) {
+        url += `&search=${encodeURIComponent(search)}`;
+    }
+
+    const response = await axios.get(url, {
         headers: {
             'Authorization': `Bearer ${token}`,
-            'accept': '*/*'
+            'accept': 'application/json'
         }
     });
     return response.data;
@@ -140,11 +146,11 @@ const deleteProduct = async (id) => {
 // Saga handlers
 function* handleFetchProducts(action) {
     try {
-        const { page = 1, limit = 12 } = action.payload;
+        const { page = 1, limit = 12, search } = action.payload;
 
         // Lấy cả product và category song song
         const [productResponse, categoryResponse] = yield all([
-            call(fetchProducts, { page, limit }),
+            call(fetchProducts, { page, limit, search }),
             call(apiGetAllCategories, 1, 1000) // lấy tối đa 1000 category
         ]);
 

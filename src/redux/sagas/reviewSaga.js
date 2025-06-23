@@ -21,7 +21,7 @@ const API_BASE_URL = 'https://youtube-fullstack-nodejs-forbeginer.onrender.com/a
 
 // Helper function to get auth token
 const getAuthToken = () => {
-    return localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODI3MjA5ODhhNjc5ZmM2YTkyYjAwNjgiLCJpc0FkbWluIjp0cnVlLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NDk2MTczMTksImV4cCI6MTc1MjIwOTMxOX0.FroBfu3yrEL5_Qeb7IW4vMK8baSrDedAfjKHufg5Yw8';
+    return localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODI3MjA5ODhhNjc5ZmM2YTkyYjAwNjgiLCJpc0FkbWluIjp0cnVlLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NDk5NzM1MTYsImV4cCI6MTc1MjU2NTUxNn0.Bra4_sSiYgGgz4KPvEAcrUlYoWKqZwxNtXRjokKP4ak';
 };
 
 // Helper function to create headers
@@ -32,15 +32,21 @@ const getAuthHeaders = () => {
     };
 };
 
-// API call to get all reviews with pagination
-const apiGetAllReviews = async (page = 1, limit = 5) => {
+// API call to get all reviews with pagination and search
+const apiGetAllReviews = async (page = 1, limit = 5, search = '') => {
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/product-review/all?page=${page}&limit=${limit}`,
-            {
-                headers: getAuthHeaders()
-            }
-        );
+        let url = `${API_BASE_URL}/product-review/all?page=${page}&limit=${limit}`;
+
+        // Add search parameter if provided
+        if (search && search.trim()) {
+            url += `&search=${encodeURIComponent(search.trim())}`;
+        }
+
+        console.log('🔍 API URL:', url);
+
+        const response = await axios.get(url, {
+            headers: getAuthHeaders()
+        });
         return response.data;
     } catch (error) {
         throw new Error(error.response?.data?.message || "Failed to fetch reviews");
@@ -119,11 +125,13 @@ const formatReviewForDisplay = (review) => ({
 // Get all reviews saga
 function* getAllReviewsSaga(action) {
     try {
-        const { page = 1, limit = 5, search = '' } = action.payload || {};
+        const { page = 1, limit = 5, search = '', status = '' } = action.payload || {};
+
+        console.log('🔍 getAllReviewsSaga params:', { page, limit, search, status });
 
         // Lấy cả review và product song song để có đầy đủ thông tin sản phẩm
         const [reviewData, productData] = yield all([
-            call(apiGetAllReviews, page, limit),
+            call(apiGetAllReviews, page, limit, search),
             call(apiGetAllProducts, 1, 1000) // lấy tối đa 1000 sản phẩm để map
         ]);
 
@@ -171,32 +179,30 @@ function* getAllReviewsSaga(action) {
                 };
             });
 
-            // Client-side search filtering if search term provided
-            if (search) {
-                formattedReviews = formattedReviews.filter(review =>
-                    review.user_id.user_name.toLowerCase().includes(search.toLowerCase()) ||
-                    review.user_id.email.toLowerCase().includes(search.toLowerCase()) ||
-                    review.product_id.name.toLowerCase().includes(search.toLowerCase()) ||
-                    review.comment.toLowerCase().includes(search.toLowerCase()) ||
-                    review._id.toLowerCase().includes(search.toLowerCase())
-                );
-            }
-
             // Sử dụng pagination data từ API
             const apiTotal = reviewData.data.total;
+
+            // Client-side status filtering if status filter provided
+            let filteredTotal = apiTotal.totalReview;
+            if (status !== '' && status !== 'all') {
+                const statusBoolean = status === 'true' || status === true;
+                formattedReviews = formattedReviews.filter(review => review.status === statusBoolean);
+                filteredTotal = formattedReviews.length; // Update total to match filtered results
+                console.log('🔍 Status filter applied:', status, 'Results:', formattedReviews.length);
+            }
 
             yield put(getAllReviewsSuccess({
                 reviews: formattedReviews,
                 pagination: {
                     page: apiTotal.currentPage,
                     limit: limit,
-                    totalPages: apiTotal.totalPage,
-                    total: apiTotal.totalReview
+                    totalPages: Math.ceil(filteredTotal / limit), // Recalculate total pages
+                    total: filteredTotal // Use filtered total
                 },
                 total: {
                     currentPage: apiTotal.currentPage,
-                    totalReview: apiTotal.totalReview,
-                    totalPage: apiTotal.totalPage,
+                    totalReview: filteredTotal, // Use filtered total
+                    totalPage: Math.ceil(filteredTotal / limit),
                     totalApproved: apiTotal.totalApproved,
                     totalPending: apiTotal.totalPending
                 }

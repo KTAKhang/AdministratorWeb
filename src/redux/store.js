@@ -8,6 +8,7 @@ import productReducer from "./reducers/productReducer";
 import reviewReducer from "./reducers/reviewReducer";
 import userReducer from "./reducers/userReducer";
 import profileReducer from "./reducers/profileReducer";
+import dashboardReducer from "./reducers/dashboardReducer";
 import rootSaga from "./sagas/rootSaga";
 const rootReducer = combineReducers({
   auth: authReducer,
@@ -17,6 +18,7 @@ const rootReducer = combineReducers({
   product: productReducer,
   review: reviewReducer,
   user: userReducer,
+  dashboard: dashboardReducer,
 });
 
 const sagaMiddleware = createSagaMiddleware();

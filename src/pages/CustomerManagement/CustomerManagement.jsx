@@ -170,12 +170,12 @@ const CustomerManagement = () => {
             onError={() => false}
           />
           <div>
-            <Text strong style={{ color: '#0D364C', display: 'block' }}>
+            <Text strong style={{ color: '#0D364C', display: 'block', fontSize: '16px' }}>
               {record.user_name}
             </Text>
             <Text type="secondary" style={{ fontSize: '12px' }}>
               <UserOutlined style={{ marginRight: '4px' }} />
-              ID: {record._id.slice(-6)}
+              ID: {record._id}
             </Text>
           </div>
         </Space>

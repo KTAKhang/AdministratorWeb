@@ -15,9 +15,9 @@ export const DELETE_PRODUCT_REQUEST = "DELETE_PRODUCT_REQUEST";
 export const DELETE_PRODUCT_SUCCESS = "DELETE_PRODUCT_SUCCESS";
 export const DELETE_PRODUCT_FAILURE = "DELETE_PRODUCT_FAILURE";
 
-export const fetchProductRequest = ({ page, limit }) => ({
+export const fetchProductRequest = ({ page, limit, search }) => ({
     type: FETCH_PRODUCT_REQUEST,
-    payload: { page, limit },
+    payload: { page, limit, search },
 });
 
 export const fetchProductSuccess = (data) => ({
@@ -30,10 +30,9 @@ export const fetchProductFailure = (error) => ({
     payload: error,
 });
 
-// FIX: Sửa để nhận đúng tham số như saga mong đợi
-export const createProductRequest = (formData, onSuccess) => ({
+export const createProductRequest = (payload) => ({
     type: CREATE_PRODUCT_REQUEST,
-    payload: { formData, onSuccess },
+    payload,
 });
 
 export const createProductSuccess = (data) => ({

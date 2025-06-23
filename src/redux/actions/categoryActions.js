@@ -17,9 +17,9 @@ export const DELETE_CATEGORY_REQUEST = "DELETE_CATEGORY_REQUEST";
 export const DELETE_CATEGORY_SUCCESS = "DELETE_CATEGORY_SUCCESS";
 export const DELETE_CATEGORY_FAILURE = "DELETE_CATEGORY_FAILURE";
 
-export const fetchCategoryRequest = ({ page, limit }) => ({
+export const fetchCategoryRequest = ({ page, limit, search }) => ({
     type: FETCH_CATEGORY_REQUEST,
-    payload: { page, limit },
+    payload: { page, limit, search },
 });
 
 export const fetchCategorySuccess = (data) => ({

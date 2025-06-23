@@ -64,30 +64,33 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
     try {
       setIsSubmitting(true);
 
-      // Create FormData for file upload
-      const formData = new FormData();
+      console.log('📤 Form values received:', values);
 
-      // Add image if exists
-      if (fileList[0]?.originFileObj) {
-        formData.append('image', fileList[0].originFileObj);
+      // Validate required fields
+      const requiredFields = ['name', 'category_id', 'price', 'short_desc', 'detail_desc', 'quantity', 'factory', 'target'];
+      for (const field of requiredFields) {
+        if (!values[field] && values[field] !== 0) {
+          message.error(`Thiếu thông tin bắt buộc: ${field}`);
+          setIsSubmitting(false);
+          return;
+        }
       }
 
-      // Add all form values
-      Object.keys(values).forEach(key => {
-        if (key !== 'image') {
-          // Convert status boolean to string để API hiểu đúng
-          if (key === 'status') {
-            formData.append(key, values[key].toString());
-          } else {
-            formData.append(key, values[key]);
-          }
-        }
-      });
+      // Get image file from form or fileList
+      let imageFile = null;
+      if (values.image && Array.isArray(values.image) && values.image.length > 0) {
+        imageFile = values.image[0].originFileObj || values.image[0];
+      } else if (fileList.length > 0) {
+        imageFile = fileList[0].originFileObj || fileList[0];
+      }
 
-      // Add default value for sold
-      formData.append('sold', '0');
+      if (!imageFile) {
+        message.error('Vui lòng chọn hình ảnh cho sản phẩm!');
+        setIsSubmitting(false);
+        return;
+      }
 
-      // Add token check
+      // Check token
       const token = localStorage.getItem('token');
       if (!token) {
         message.error('Vui lòng đăng nhập để thực hiện chức năng này!');
@@ -95,23 +98,41 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
         return;
       }
 
-      // Log form data for debugging
-      console.log('Form values:', values);
-      console.log('Status value being sent:', values.status);
-      console.log('FormData entries:');
+      // Create FormData
+      const formData = new FormData();
+
+      // Add image
+      formData.append('image', imageFile);
+
+      // Add all required fields
+      formData.append('name', values.name.trim());
+      formData.append('category_id', values.category_id);
+      formData.append('price', values.price.toString());
+      formData.append('short_desc', values.short_desc.trim());
+      formData.append('detail_desc', values.detail_desc.trim());
+      formData.append('quantity', values.quantity.toString());
+      formData.append('factory', values.factory.trim());
+      formData.append('target', values.target.trim());
+      formData.append('status', values.status ? 'true' : 'false');
+      formData.append('sold', '0'); // Default value
+
+      console.log('📦 FormData being sent:');
       for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
+        console.log(`  ${pair[0]}:`, pair[1] instanceof File ? `File(${pair[1].name})` : pair[1]);
       }
 
-      // Dispatch create action with success callback
-      dispatch(createProductRequest(formData, () => {
-
-        form.resetFields();
-        setFileList([]);
-        setSwitchValue(true);
-        setIsSubmitting(false);
-        onSuccess && onSuccess();
-        onClose && onClose();
+      // Dispatch create action
+      dispatch(createProductRequest({
+        formData,
+        onSuccess: () => {
+          message.success('Tạo sản phẩm thành công!');
+          form.resetFields();
+          setFileList([]);
+          setSwitchValue(true);
+          setIsSubmitting(false);
+          onSuccess && onSuccess();
+          onClose && onClose();
+        }
       }));
 
     } catch (error) {
@@ -388,6 +409,11 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                 <Form.Item
                   label={<span style={customStyles.label}>Hình ảnh sản phẩm</span>}
                   name="image"
+                  valuePropName="fileList"
+                  getValueFromEvent={(e) => (Array.isArray(e) ? e : e?.fileList)}
+                  rules={[
+                    { required: true, message: "Vui lòng chọn hình ảnh cho sản phẩm!" }
+                  ]}
                 >
                   <Upload
                     listType="picture-card"
@@ -423,7 +449,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   </Upload>
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                   label={<span style={customStyles.label}>Trạng thái hiển thị</span>}
                   name="status"
                   valuePropName="checked"
@@ -439,7 +465,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                       {switchValue ? 'Sản phẩm sẽ được hiển thị công khai' : 'Sản phẩm sẽ được ẩn'}
                     </Text>
                   </div>
-                </Form.Item>
+                </Form.Item> */}
 
                 <Divider style={customStyles.divider} />
 

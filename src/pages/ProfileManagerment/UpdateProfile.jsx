@@ -1,6 +1,6 @@
 import { Card, Avatar, Row, Col, Form, Input, Select, Button, Upload, message, Switch } from 'antd';
-import { 
-  UserOutlined, 
+import {
+  UserOutlined,
   MailOutlined,
   TeamOutlined,
   CheckCircleOutlined,
@@ -19,7 +19,7 @@ const EditProfile = () => {
   const [formData, setFormData] = useState({});
   const [loading, setLoading] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState('');
-  
+
   // Sample user data - UpdateProfile
   const [userData] = useState({
     user_name: 'Sample User',
@@ -48,7 +48,7 @@ const EditProfile = () => {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-      
+
       console.log('Form values:', { ...values, avatar: avatarUrl });
       message.success('Cập nhật thông tin thành công!');
     } catch (error) {
@@ -100,16 +100,16 @@ const EditProfile = () => {
         <div className="p-8">
           <div className="max-w-7xl mx-auto space-y-8">
             {/* Header Section */}
-            <motion.div 
+            <motion.div
               initial={{ opacity: 0, y: -20 }}
               animate={{ opacity: 1, y: 0 }}
               className="mb-12 relative"
             >
               <div className="absolute inset-0 bg-gradient-to-r from-[#13C2C2]/10 via-[#0D364C]/10 to-[#13C2C2]/10 blur-3xl -z-10"></div>
-              
+
               {/* Back button */}
-              <Button 
-                type="text" 
+              <Button
+                type="text"
                 icon={<ArrowLeftOutlined />}
                 className="mb-4 flex items-center text-gray-600 hover:text-[#0D364C] transition-colors"
                 onClick={() => window.history.back()}
@@ -130,7 +130,7 @@ const EditProfile = () => {
                 {/* Left Column - Avatar & Basic Info */}
                 <Col xs={24} md={8}>
                   <div className="sticky top-24 space-y-6">
-                    <Card 
+                    <Card
                       className="rounded-3xl border-0 shadow-2xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-lg overflow-visible"
                     >
                       <div className="text-center relative">
@@ -139,28 +139,28 @@ const EditProfile = () => {
                           {/* Animated rings */}
                           <div className="absolute -inset-4 bg-gradient-to-r from-[#13C2C2] via-[#0D364C] to-[#13C2C2] rounded-full blur-lg opacity-20 group-hover:opacity-30 animate-pulse"></div>
                           <div className="absolute -inset-4 bg-gradient-to-r from-[#0D364C] via-[#13C2C2] to-[#0D364C] rounded-full blur opacity-20 group-hover:opacity-30 animate-spin-slow"></div>
-                          
+
                           {/* Upload overlay */}
                           <Upload {...uploadProps}>
                             <div className="relative cursor-pointer">
-                              <Avatar 
-                                size={160} 
+                              <Avatar
+                                size={160}
                                 src={avatarUrl || userData?.avatar}
-                                icon={!avatarUrl && !userData?.avatar && <UserOutlined />} 
+                                icon={!avatarUrl && !userData?.avatar && <UserOutlined />}
                                 className="ring-8 ring-white shadow-2xl border-4 border-gray-100 group-hover:scale-105 transition-all duration-500 relative z-10"
                               />
-                              
+
                               {/* Camera overlay */}
                               <div className="absolute inset-0 bg-black/50 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all duration-300 z-20">
                                 <CameraOutlined className="text-white text-2xl" />
                               </div>
                             </div>
                           </Upload>
-                          
+
                         </div>
 
                         {/* Upload hint */}
-                        <motion.div 
+                        <motion.div
                           initial={{ y: 20, opacity: 0 }}
                           animate={{ y: 0, opacity: 1 }}
                           transition={{ delay: 0.3 }}
@@ -185,7 +185,7 @@ const EditProfile = () => {
                     animate={{ x: 0, opacity: 1 }}
                     transition={{ delay: 0.5 }}
                   >
-                    <Card 
+                    <Card
                       className="rounded-3xl border-0 shadow-2xl hover:shadow-2xl transition-all duration-500 bg-white/90 backdrop-blur-lg"
                       title={
                         <div className="flex items-center space-x-3 py-2">
@@ -209,8 +209,8 @@ const EditProfile = () => {
                               <UserOutlined className="text-[#0D364C]" />
                               <span className="font-medium">Tên người dùng</span>
                             </div>
-                            <Input 
-                              size="large" 
+                            <Input
+                              size="large"
                               placeholder="Nhập tên người dùng"
                               defaultValue={userData.user_name}
                               className="rounded-xl border-2 hover:border-[#13C2C2] focus:border-[#13C2C2] transition-colors"
@@ -230,8 +230,8 @@ const EditProfile = () => {
                               <MailOutlined className="text-[#13C2C2]" />
                               <span className="font-medium">Email</span>
                             </div>
-                            <Input 
-                              size="large" 
+                            <Input
+                              size="large"
                               placeholder="Nhập địa chỉ email"
                               defaultValue={userData.email}
                               className="rounded-xl border-2 hover:border-[#13C2C2] focus:border-[#13C2C2] transition-colors"
@@ -248,16 +248,16 @@ const EditProfile = () => {
                         transition={{ delay: 0.6 }}
                         className="flex justify-end space-x-4 mt-8 pt-6 border-t border-gray-100"
                       >
-                        <Button 
+                        <Button
                           size="large"
                           className="px-8 py-2 h-auto rounded-xl border-2 border-gray-300 hover:border-gray-400 transition-colors"
                           onClick={() => window.location.reload()}
                         >
                           Đặt lại
                         </Button>
-                        
-                        <Button 
-                          type="primary" 
+
+                        <Button
+                          type="primary"
                           size="large"
                           loading={loading}
                           icon={<SaveOutlined />}

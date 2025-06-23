@@ -36,17 +36,27 @@ const createHeaders = (isFormData = false) => {
     return headers;
 };
 
-// API call to get all users with new response structure
-const apiGetAllUsers = async (page = 1, limit = 10) => {
+// API call to get all users with search support
+const apiGetAllUsers = async (page = 1, limit = 10, search = "") => {
     try {
-        const response = await axios.get(
-            `${API_BASE_URL}/user/get-all?page=${page}&limit=${limit}`,
-            {
-                headers: createHeaders()
-            }
-        );
+        // Build URL với search parameter
+        let url = `${API_BASE_URL}/user/get-all?page=${page}&limit=${limit}`;
+
+        // Thêm search parameter nếu có
+        if (search && search.trim() !== "") {
+            url += `&search=${encodeURIComponent(search.trim())}`;
+        }
+
+        console.log('🔍 API URL:', url); // Debug log
+
+        const response = await axios.get(url, {
+            headers: createHeaders()
+        });
+
+        console.log('✅ API Response:', response.data); // Debug log
         return response.data;
     } catch (error) {
+        console.error('❌ API Error:', error.response?.data || error.message);
         throw new Error(error.response?.data?.message || "Failed to fetch users");
     }
 };
@@ -124,11 +134,13 @@ const formatUserForDisplay = (user) => ({
     updatedAt: user.updatedAt
 });
 
-// Saga to handle get all users with new API structure
+// Saga to handle get all users with search support
 function* handleGetAllUsers(action) {
     try {
-        const { page = 1, limit = 10 } = action.payload;
-        const response = yield call(apiGetAllUsers, page, limit);
+        const { page = 1, limit = 10, search = "" } = action.payload;
+        console.log('🔍 Saga params:', { page, limit, search }); // Debug log
+
+        const response = yield call(apiGetAllUsers, page, limit, search);
 
         if (response.status === 'OK') {
             // Format users data from new API structure
@@ -151,14 +163,16 @@ function* handleGetAllUsers(action) {
                 pagination: {
                     page: response.pagination?.page || page,
                     limit: response.pagination?.limit || limit,
-                    totalPages: response.data.total?.totalPage || 1,
+                    totalPages: response.data.total?.totalPage || response.pagination?.totalPages || 1,
                 }
             };
 
             yield put(getAllUsersSuccess(processedData));
 
-            // Không hiển thị toast success cho việc fetch data thông thường
-            // toast.success(data.message || 'Tải dữ liệu thành công');
+            // Log success cho search
+            if (search && search.trim() !== "") {
+                console.log(`✅ Search completed for: "${search}" - Found ${formattedUsers.length} results`);
+            }
         } else {
             throw new Error(response.message || 'Failed to fetch users');
         }
@@ -204,8 +218,8 @@ function* handleUpdateUser(action) {
         }
     } catch (error) {
         console.error('Error updating user:', error);
-        yield put(updateUserFailure(error.message));
-        toast.error('Có lỗi xảy ra khi cập nhật: ' + error.message);
+        // yield put(updateUserFailure(error.message));
+        // toast.error('Có lỗi xảy ra khi cập nhật: ' + error.message);
     }
 }
 

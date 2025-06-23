@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useDispatch, useSelector } from "react-redux";
 import {
   Card,
@@ -14,9 +14,9 @@ import {
   Col,
   Badge,
   Avatar,
-  Tooltip,
   Alert,
-  Spin
+  Spin,
+  Select
 } from "antd";
 import {
   EditOutlined,
@@ -40,6 +40,7 @@ const { Title, Text } = Typography;
 
 const CategoryManagement = () => {
   const dispatch = useDispatch();
+  const mounted = useRef(true);
 
   // Redux state
   const reduxState = useSelector(state => state.category);
@@ -61,6 +62,8 @@ const CategoryManagement = () => {
 
   // Fetch categories function
   const fetchCategories = useCallback((page = 1, pageSize = 5, search = "") => {
+    if (!mounted.current) return;
+
     const requestPayload = {
       page,
       limit: pageSize,
@@ -69,94 +72,146 @@ const CategoryManagement = () => {
     dispatch(fetchCategoryRequest(requestPayload));
   }, [dispatch]);
 
-  // Load initial data - only once on mount
+  // Load initial data - chỉ chạy 1 lần khi component mount
   useEffect(() => {
+    mounted.current = true;
     fetchCategories(1, 5);
-  }, []); // Empty dependency array to run only once
 
-  // Sync Redux pagination with local state
+    return () => {
+      mounted.current = false;
+    };
+  }, []); // Bỏ fetchCategories khỏi dependency để tránh vòng lặp
+
+  // Sync Redux pagination với local state - FIX: Thêm điều kiện kiểm tra chặt chẽ hơn
   useEffect(() => {
-    if (reduxPagination) {
+    if (reduxPagination && mounted.current) {
       const newPagination = {
         current: reduxPagination.page || 1,
         pageSize: reduxPagination.limit || 5,
         total: reduxPagination.totalCategory || 0
       };
-      setPagination(newPagination);
-    }
-  }, [reduxPagination]);
 
-  // Handle search with debounce - fix dependency issue
-  const handleSearch = useCallback(
+      setPagination(prevPagination => {
+        // Chỉ update nếu có sự thay đổi thực sự
+        if (
+          prevPagination.current !== newPagination.current ||
+          prevPagination.pageSize !== newPagination.pageSize ||
+          prevPagination.total !== newPagination.total
+        ) {
+          console.log("📊 Updating pagination:", newPagination);
+          return newPagination;
+        }
+        return prevPagination;
+      });
+    }
+  }, [reduxPagination?.page, reduxPagination?.limit, reduxPagination?.totalCategory]); // FIX: Chỉ theo dõi các giá trị cụ thể
+
+  // Handle search với debounce
+  const debouncedSearch = useCallback(
     debounce((value) => {
-      setSearchText(value);
-      setPagination(prev => ({ ...prev, current: 1 }));
-      fetchCategories(1, 5, value); // Use fixed pageSize to avoid dependency
-    }, 500),
-    [fetchCategories]
+      if (!mounted.current) return;
+      console.log("🔍 Search API triggered for category:", value);
+      fetchCategories(1, 5, value);
+    }, 2000),
+    [] // FIX: Bỏ fetchCategories khỏi dependency
   );
 
+  // Handle search input change
+  const handleSearch = useCallback((value) => {
+    console.log("🔍 Search input changed:", value);
+    setSearchText(value);
+    setPagination(prev => ({ ...prev, current: 1 }));
+    debouncedSearch(value);
+  }, [debouncedSearch]);
+
   // Handle table change
-  const handleTableChange = (paginationConfig, filters, sorter) => {
+  const handleTableChange = useCallback((paginationConfig) => {
+    if (!mounted.current) return;
+
     const { current, pageSize } = paginationConfig;
     const newCurrent = current || 1;
-    const newPageSize = pageSize || pagination.pageSize;
+    const newPageSize = pageSize || 5;
 
+    console.log("📄 Table pagination changed:", { current: newCurrent, pageSize: newPageSize });
+
+    // Update local pagination state
     setPagination(prev => ({
       ...prev,
       current: newCurrent,
       pageSize: newPageSize
     }));
 
+    // Fetch data with new pagination
     fetchCategories(newCurrent, newPageSize, searchText);
-  };
+  }, [searchText]); // FIX: Bỏ fetchCategories khỏi dependency
 
   // Handle refresh
-  const handleRefresh = () => {
+  const handleRefresh = useCallback(() => {
+    if (!mounted.current) return;
+    console.log("🔄 Refreshing categories...");
     fetchCategories(pagination.current, pagination.pageSize, searchText);
-  };
+  }, [pagination.current, pagination.pageSize, searchText]); // FIX: Bỏ fetchCategories khỏi dependency
 
-  // Statistics - use API statistics when available, fallback to client-side calculation
-  const stats = {
-    total: statistics?.totalActive + statistics?.totalInactive || (Array.isArray(categories) ? categories.length : 0),
-    active: statistics?.totalActive || (Array.isArray(categories) ? categories.filter(cat => cat?.status).length : 0),
-    inactive: statistics?.totalInactive || (Array.isArray(categories) ? categories.filter(cat => !cat?.status).length : 0)
-  };
+  // Clear search and filters
+  const handleClearSearch = useCallback(() => {
+    setSearchText("");
+    setPagination(prev => ({ ...prev, current: 1 }));
+    fetchCategories(1, 5, "");
+  }, []); // FIX: Bỏ fetchCategories khỏi dependency
 
-  const handleCreateSuccess = () => {
+  // Statistics - tính toán stable
+  const stats = useCallback(() => {
+    const categoriesArray = Array.isArray(categories) ? categories : [];
+    return {
+      total: statistics?.totalActive + statistics?.totalInactive || categoriesArray.length,
+      active: statistics?.totalActive || categoriesArray.filter(cat => cat?.status).length,
+      inactive: statistics?.totalInactive || categoriesArray.filter(cat => !cat?.status).length
+    };
+  }, [categories, statistics?.totalActive, statistics?.totalInactive]); // FIX: Theo dõi các giá trị cụ thể
+
+  // Modal handlers
+  const handleCreateSuccess = useCallback(() => {
     toast.success("Thêm category thành công");
     setIsCreateModalVisible(false);
-    handleRefresh();
-  };
+    // FIX: Refresh data để đồng bộ với server
+    setTimeout(() => {
+      fetchCategories(1, pagination.pageSize, searchText); // Về trang đầu sau khi tạo mới
+      setPagination(prev => ({ ...prev, current: 1 })); // Reset về trang 1
+    }, 100);
+  }, [pagination.pageSize, searchText]); // FIX: Bỏ fetchCategories khỏi dependency
 
-  const handleOpenUpdateModal = (category) => {
+  const handleOpenUpdateModal = useCallback((category) => {
     setSelectedCategory(category);
     setIsUpdateModalVisible(true);
-  };
+  }, []);
 
-  const handleUpdateSuccess = (id, updatedValues) => {
+  const handleUpdateSuccess = useCallback(() => {
     toast.success("Cập nhật category thành công");
     setIsUpdateModalVisible(false);
     setSelectedCategory(null);
-    handleRefresh();
-  };
+    // Refresh lại trang hiện tại
+    setTimeout(() => {
+      fetchCategories(pagination.current, pagination.pageSize, searchText);
+    }, 100);
+  }, [pagination.current, pagination.pageSize, searchText]); // FIX: Bỏ fetchCategories khỏi dependency
 
-  const handleCloseUpdateModal = () => {
+  const handleCloseUpdateModal = useCallback(() => {
     setIsUpdateModalVisible(false);
     setSelectedCategory(null);
-  };
+  }, []);
 
-  const handleOpenViewDetailModal = (category) => {
+  const handleOpenViewDetailModal = useCallback((category) => {
     setSelectedCategory(category);
     setIsViewDetailModalVisible(true);
-  };
+  }, []);
 
-  const handleCloseViewDetailModal = () => {
+  const handleCloseViewDetailModal = useCallback(() => {
     setIsViewDetailModalVisible(false);
     setSelectedCategory(null);
-  };
+  }, []);
 
-  const columns = [
+  // Columns definition - memoized để tránh re-render Table
+  const columns = useCallback(() => [
     {
       title: "Category",
       key: "category",
@@ -171,13 +226,20 @@ const CategoryManagement = () => {
             onError={() => false}
           />
           <div>
-            <Text strong style={{ color: '#0D364C', display: 'block' }}>
+            <div style={{ color: '#0D364C', fontWeight: 'bold', fontSize: '16px' }}>
               {record.name}
-            </Text>
-            <Text type="secondary" style={{ fontSize: '12px' }}>
+            </div>
+            <div
+              style={{ fontSize: '12px', color: '#999', cursor: 'pointer' }}
+              onClick={() => {
+                navigator.clipboard.writeText(record._id);
+                toast.success('Đã copy ID vào clipboard');
+              }}
+              title="Click để copy ID đầy đủ"
+            >
               <AppstoreOutlined style={{ marginRight: '4px' }} />
-              ID: {record._id?.slice(-6) || 'N/A'}
-            </Text>
+              ID: {record._id || 'N/A'}
+            </div>
           </div>
         </Space>
       ),
@@ -210,7 +272,7 @@ const CategoryManagement = () => {
       dataIndex: "createdAt",
       key: "createdAt",
       render: (date) => (
-        <Text type="secondary">
+        <span style={{ color: '#999' }}>
           {date ? new Date(date).toLocaleDateString('vi-VN', {
             year: 'numeric',
             month: '2-digit',
@@ -218,7 +280,7 @@ const CategoryManagement = () => {
             hour: '2-digit',
             minute: '2-digit'
           }) : 'N/A'}
-        </Text>
+        </span>
       )
     },
     {
@@ -226,26 +288,54 @@ const CategoryManagement = () => {
       key: "action",
       render: (_, record) => (
         <Space size="small">
-          <Tooltip title="Xem chi tiết">
-            <Button
-              type="text"
-              icon={<EyeOutlined />}
-              onClick={() => handleOpenViewDetailModal(record)}
-              style={{ color: '#13C2C2' }}
-            />
-          </Tooltip>
-          <Tooltip title="Chỉnh sửa">
-            <Button
-              type="text"
-              icon={<EditOutlined />}
-              onClick={() => handleOpenUpdateModal(record)}
-              style={{ color: '#0D364C' }}
-            />
-          </Tooltip>
+          <Button
+            type="text"
+            icon={<EyeOutlined />}
+            onClick={() => handleOpenViewDetailModal(record)}
+            style={{ color: '#13C2C2' }}
+            title="Xem chi tiết"
+          />
+          <Button
+            type="text"
+            icon={<EditOutlined />}
+            onClick={() => handleOpenUpdateModal(record)}
+            style={{ color: '#0D364C' }}
+            title="Chỉnh sửa"
+          />
         </Space>
       ),
     },
-  ];
+  ], [handleOpenViewDetailModal, handleOpenUpdateModal]);
+
+  // Tính toán stats
+  const currentStats = stats();
+
+  // FIX: Xử lý data và pagination để tránh Antd warning
+  const tableDataSource = Array.isArray(categories) ? categories : [];
+  const tablePagination = {
+    current: pagination.current,
+    pageSize: pagination.pageSize,
+    total: pagination.total,
+    showSizeChanger: true,
+    showQuickJumper: true,
+    pageSizeOptions: ['5', '10', '20', '50'],
+    showTotal: (total, range) => (
+      <span style={{ color: '#0D364C' }}>
+        Hiển thị {range[0]}-{range[1]} trong tổng số {total} categories
+      </span>
+    ),
+    onChange: (page, pageSize) => {
+      handleTableChange({ current: page, pageSize });
+    },
+    onShowSizeChange: (current, size) => {
+      handleTableChange({ current, pageSize: size });
+    },
+  };
+
+  // FIX: Kiểm tra tính nhất quán của data
+  if (tableDataSource.length > 0 && pagination.total === 0) {
+    console.warn("⚠️ Data inconsistency detected - categories exist but total is 0");
+  }
 
   if (error) {
     return (
@@ -276,8 +366,8 @@ const CategoryManagement = () => {
         <Col xs={24} sm={8}>
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
-              title={<Text style={{ color: '#0D364C' }}>Tổng categories</Text>}
-              value={pagination.total || stats.total}
+              title={<span style={{ color: '#0D364C' }}>Tổng categories</span>}
+              value={pagination.total || currentStats.total}
               prefix={<AppstoreOutlined style={{ color: '#13C2C2' }} />}
               valueStyle={{ color: '#13C2C2', fontWeight: 'bold' }}
             />
@@ -286,8 +376,8 @@ const CategoryManagement = () => {
         <Col xs={24} sm={8}>
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
-              title={<Text style={{ color: '#0D364C' }}>Đang hiển thị</Text>}
-              value={stats.active}
+              title={<span style={{ color: '#0D364C' }}>Đang hiển thị</span>}
+              value={currentStats.active}
               prefix={<CheckCircleOutlined style={{ color: '#52c41a' }} />}
               valueStyle={{ color: '#52c41a', fontWeight: 'bold' }}
             />
@@ -296,8 +386,8 @@ const CategoryManagement = () => {
         <Col xs={24} sm={8}>
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
-              title={<Text style={{ color: '#0D364C' }}>Đang ẩn</Text>}
-              value={stats.inactive}
+              title={<span style={{ color: '#0D364C' }}>Đang ẩn</span>}
+              value={currentStats.inactive}
               prefix={<StopOutlined style={{ color: '#ff4d4f' }} />}
               valueStyle={{ color: '#ff4d4f', fontWeight: 'bold' }}
             />
@@ -330,15 +420,26 @@ const CategoryManagement = () => {
           flexWrap: 'wrap',
           gap: '16px'
         }}>
-          <Input.Search
-            placeholder="Tìm kiếm category..."
-            onChange={(e) => handleSearch(e.target.value)}
-            style={{ width: '320px', maxWidth: '100%' }}
-            size="large"
-            prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
-            allowClear
-            onSearch={(value) => handleSearch(value)}
-          />
+          <Space size="middle" style={{ flex: 1, flexWrap: 'wrap' }}>
+            <Input.Search
+              placeholder="Tìm kiếm theo tên category hoặc ID..."
+              value={searchText}
+              onChange={(e) => handleSearch(e.target.value)}
+              style={{ width: '320px', maxWidth: '100%' }}
+              size="large"
+              prefix={<SearchOutlined style={{ color: '#13C2C2' }} />}
+              allowClear
+              onSearch={(value) => handleSearch(value)}
+            />
+            {searchText && (
+              <Button
+                onClick={handleClearSearch}
+                style={{ color: '#ff4d4f', borderColor: '#ff4d4f' }}
+              >
+                Xóa bộ lọc
+              </Button>
+            )}
+          </Space>
           <Space>
             <Button
               onClick={handleRefresh}
@@ -363,28 +464,12 @@ const CategoryManagement = () => {
         <Spin spinning={loading}>
           <Table
             rowKey={(record) => record._id}
-            columns={columns}
-            dataSource={Array.isArray(categories) ? categories : []}
-            pagination={{
-              current: pagination.current,
-              pageSize: pagination.pageSize,
-              total: pagination.total,
-              showSizeChanger: true,
-              showQuickJumper: true,
-              pageSizeOptions: ['5', '10', '20', '50'],
-              showTotal: (total, range) => (
-                <Text style={{ color: '#0D364C' }}>
-                  Hiển thị {range[0]}-{range[1]} trong tổng số {total} categories
-                </Text>
-              ),
-              onChange: (page, pageSize) => {
-                handleTableChange({ current: page, pageSize }, {}, {});
-              },
-              onShowSizeChange: (current, size) => {
-                handleTableChange({ current, pageSize: size }, {}, {});
-              },
-            }}
+            columns={columns()}
+            dataSource={tableDataSource}
+            pagination={tablePagination}
             style={{ borderRadius: '12px', overflow: 'hidden' }}
+            scroll={{ x: true }}
+            size="middle"
           />
         </Spin>
       </Card>
