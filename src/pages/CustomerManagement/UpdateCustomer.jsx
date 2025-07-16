@@ -8,11 +8,9 @@ import {
   Switch,
   Upload,
   Modal,
-  Select,
   Space,
   Typography,
   Divider,
-  message,
   Avatar,
   Spin
 } from "antd";
@@ -22,7 +20,6 @@ import {
   CloseOutlined,
   UserOutlined,
   MailOutlined,
-  TeamOutlined,
   UploadOutlined
 } from "@ant-design/icons";
 import PropTypes from "prop-types";
@@ -33,12 +30,6 @@ import {
 } from "../../redux/actions/userActions";
 
 const { Title, Text } = Typography;
-
-// Sample roles data theo API thực tế
-const sampleRoles = [
-  { id: 'customer', name: 'Khách hàng' },
-  { id: 'admin', name: 'Admin' }
-];
 
 const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
   const dispatch = useDispatch();
@@ -80,8 +71,6 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
       const formValues = {
         user_name: userDetail.user_name || '',
         email: userDetail.email || '', // Bây giờ sẽ có email từ API detail
-        password: '', // Password để trống để user nhập mới
-        role: userDetail.role_name || 'customer',
         status: currentStatus,
       };
 
@@ -125,10 +114,8 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
     updateData.status = Boolean(values.status);
     console.log(`🔍 Status processing: ${values.status} -> ${updateData.status} (type: ${typeof updateData.status})`); // Debug log
 
-    // Handle avatar file
-    if (fileList.length > 0 && fileList[0].originFileObj) {
-      updateData.avatar = fileList[0].originFileObj;
-    }
+    // Không xử lý avatar file (không gửi avatar mới lên)
+    delete updateData.avatar;
 
     console.log('🔍 Final updateData:', updateData); // Debug log
 
@@ -282,6 +269,7 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
                 rules={[{ required: true, message: "Vui lòng nhập tên người dùng!" }]}
               >
                 <Input
+                  disabled={true}
                   placeholder="Nhập tên người dùng"
                   style={{ borderRadius: '8px' }}
                 />
@@ -301,52 +289,10 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
                 ]}
               >
                 <Input
+                  disabled={true}
                   placeholder="Nhập email"
                   style={{ borderRadius: '8px' }}
                 />
-              </Form.Item>
-
-              <Form.Item
-                label={
-                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                    <UserOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                    Mật khẩu
-                  </Text>
-                }
-                name="password"
-                rules={[
-                  { min: 6, message: "Mật khẩu phải có ít nhất 6 ký tự!" }
-                ]}
-              >
-                <Input.Password
-                  placeholder="Nhập mật khẩu mới (để trống nếu không thay đổi)"
-                  style={{ borderRadius: '8px' }}
-                />
-              </Form.Item>
-              <Text type="secondary" style={{ fontSize: '12px', marginTop: '-16px', display: 'block', marginBottom: '16px' }}>
-                Để trống nếu không muốn thay đổi mật khẩu hiện tại
-              </Text>
-
-              <Form.Item
-                label={
-                  <Text strong style={{ color: '#0D364C', fontSize: '14px' }}>
-                    <TeamOutlined style={{ color: '#13C2C2', marginRight: '8px' }} />
-                    Vai trò
-                  </Text>
-                }
-                name="role"
-                rules={[{ required: true, message: "Vui lòng chọn vai trò!" }]}
-              >
-                <Select
-                  placeholder="Chọn vai trò"
-                  style={{ borderRadius: '8px' }}
-                >
-                  {sampleRoles.map(role => (
-                    <Select.Option key={role.id} value={role.id}>
-                      {role.name}
-                    </Select.Option>
-                  ))}
-                </Select>
               </Form.Item>
 
               <Form.Item
@@ -366,16 +312,11 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
                   onChange={handleChange}
                   fileList={fileList}
                   className="avatar-upload"
+                  disabled={true}
+                  showUploadList={{ showRemoveIcon: false }}
                 >
-                  {fileList.length < 1 && (
-                    <div style={{ color: '#13C2C2' }}>
-                      <UploadOutlined />
-                      <div style={{ marginTop: 8, fontSize: '12px' }}>Tải ảnh lên</div>
-                    </div>
-                  )}
                 </Upload>
                 <Text type="secondary" style={{ fontSize: '12px' }}>
-                  Định dạng: JPG, PNG. Kích thước tối đa: 2MB
                 </Text>
               </Form.Item>
 
