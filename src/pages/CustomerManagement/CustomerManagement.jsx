@@ -314,7 +314,7 @@ const CustomerManagement = () => {
           <Space>
             <Avatar style={{ backgroundColor: '#13C2C2' }} icon={<TeamOutlined />} />
             <Title level={3} style={{ margin: 0, color: '#0D364C' }}>
-              Quản lý Khách hàng
+              Quản lý người dùng
             </Title>
           </Space>
         }

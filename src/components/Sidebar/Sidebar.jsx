@@ -59,7 +59,7 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
       color: "#96CEB4",
       children: [
         {
-          title: "Quản Lý Category",
+          title: "Quản Lý Categories",
           path: "/admin/category",
           icon: <AppstoreOutlined />,
           color: "#FECA57"
@@ -73,7 +73,7 @@ const Sidebar = ({ isFinance, isAdmin, isApprover, isClaimer }) => {
       ]
     },
     {
-      title: "Quản Lý Khách Hàng",
+      title: "Quản Lý Người Dùng",
       path: "/admin/customer",
       icon: <UserOutlined />,
       color: "#54A0FF"

@@ -269,7 +269,7 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
                   </Upload>
                 </Form.Item>
 
-                <Form.Item
+                {/* <Form.Item
                   label={<span style={customStyles.label}>Trạng thái hiển thị</span>}
                   name="status"
                   valuePropName="checked"
@@ -285,7 +285,7 @@ const CreateCategory = ({ visible, onClose, onSuccess }) => {
                       {switchValue ? 'Category sẽ được hiển thị công khai' : 'Category sẽ được ẩn'}
                     </Text>
                   </div>
-                </Form.Item>
+                </Form.Item> */}
 
                 <Divider style={customStyles.divider} />
 
