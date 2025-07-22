@@ -23,7 +23,6 @@ import {
   EditOutlined,
   SearchOutlined,
   ShoppingCartOutlined,
-  DollarOutlined,
   CheckCircleOutlined,
   StopOutlined,
   UserOutlined,
@@ -35,7 +34,7 @@ import {
 } from "@ant-design/icons";
 import { debounce } from "lodash";
 import { toast } from "react-toastify";
-import { fetchOrderRequest, fetchOrderByStatusRequest } from "../../redux/actions/orderActions";
+import { fetchOrderRequest } from "../../redux/actions/orderActions";
 import ViewOrderDetail from "./ViewOrderDetail";
 import UpdateOrderStatus from "./UpdateOrderStatus";
 
@@ -62,6 +61,15 @@ const OrderManagement = () => {
     total: 0,
   });
 
+  // State để lưu stats từ API
+  const [orderStats, setOrderStats] = useState({
+    total: 0,
+    pending: 0,
+    processing: 0,
+    completed: 0,
+    totalValue: 0
+  });
+
   const [isViewDetailModalVisible, setIsViewDetailModalVisible] = useState(false);
   const [selectedOrder, setSelectedOrder] = useState(null);
   const [isUpdateStatusModalVisible, setIsUpdateStatusModalVisible] = useState(false);
@@ -69,7 +77,6 @@ const OrderManagement = () => {
 
 
   const fetchOrders = useCallback((page = 1, pageSize = 5, search = "", status = "") => {
-    console.log('🔍 fetchOrders called with:', { page, pageSize, search, status });
 
     // Tạo search query kết hợp status và search text
     let combinedSearch = search;
@@ -84,21 +91,52 @@ const OrderManagement = () => {
       ...(combinedSearch && { search: combinedSearch })
     };
 
-    console.log('🔍 Final request payload:', requestPayload);
-
     // Sử dụng API chính với search kết hợp
     dispatch(fetchOrderRequest(requestPayload));
   }, [dispatch]);
 
+    // State riêng để lưu toàn bộ orders cho stats (không ảnh hưởng table pagination)
+  const [allOrdersForStats, setAllOrdersForStats] = useState([]);
+
+  // Fetch ALL orders for stats calculation (separate from table data)
+  const fetchOrderStats = useCallback(async () => {
+    try {
+    
+      
+      // Gọi API trực tiếp thay vì qua Redux để không ảnh hưởng table
+      const token = localStorage.getItem('token');
+      const response = await fetch(
+        'https://youtube-fullstack-nodejs-forbeginer.onrender.com/api/order/status?page=1&limit=1000&status=',
+        {
+          headers: {
+            'accept': '*/*',
+            'Authorization': `Bearer ${token}`,
+          }
+        }
+      );
+      
+      const data = await response.json();
+    
+      
+      if (data.success && data.data?.orders) {
+        setAllOrdersForStats(data.data.orders);
+       
+      }
+      
+      
+    } catch (error) {
+      console.error('Error fetching order stats:', error);
+    }
+  }, []);
+
   // ✅ Load dữ liệu ban đầu
   useEffect(() => {
-
     fetchOrders(1, 5);
-  }, []); // Chỉ chạy 1 lần khi mount
+    fetchOrderStats(); // Load stats từ API
+  }, [fetchOrders, fetchOrderStats]); // Chỉ chạy 1 lần khi mount
 
   // ✅ Sync Redux pagination với local state
   useEffect(() => {
-
     if (reduxPagination) {
       const newPagination = {
         current: reduxPagination.page || 1,
@@ -106,15 +144,51 @@ const OrderManagement = () => {
         total: reduxPagination.total || 0
       };
 
-
       setPagination(newPagination);
     }
   }, [reduxPagination]);
 
+  // ✅ Update stats when allOrdersForStats changes (not just table orders)
+  useEffect(() => {
+    if (allOrdersForStats && Array.isArray(allOrdersForStats)) {
+      const newStats = {
+        total: allOrdersForStats.length,
+        pending: allOrdersForStats.filter(o => o.order_status?.name === 'PENDING').length,
+        processing: allOrdersForStats.filter(o => ['PROCESSING', 'CONFIRMED'].includes(o.order_status?.name)).length,
+        completed: allOrdersForStats.filter(o => ['DELIVERED', 'COMPLETED'].includes(o.order_status?.name)).length,
+        totalValue: allOrdersForStats.reduce((sum, o) => sum + (o.total_price || 0), 0)
+      };
+      
+
+      
+      // Log all unique status names to understand what we're working with
+      const statusNames = [...new Set(allOrdersForStats.map(o => o.order_status?.name).filter(Boolean))];
+      console.log('All unique status names found:', statusNames);
+      
+      // Log status distribution
+      const statusCounts = {};
+      allOrdersForStats.forEach(order => {
+        const status = order.order_status?.name;
+        statusCounts[status] = (statusCounts[status] || 0) + 1;
+      });
+   
+      
+      setOrderStats(newStats);
+    } else {
+      // Set default stats if no orders
+      setOrderStats({
+        total: 0,
+        pending: 0,
+        processing: 0,
+        completed: 0,
+        totalValue: 0
+      });
+    }
+  }, [allOrdersForStats]);
+
   // ✅ Handle search với debounce 2 giây - API call only
   const debouncedSearch = useCallback(
     debounce((value) => {
-      console.log("🔍 Search API triggered:", value);
       setPagination(prev => ({ ...prev, current: 1 }));
       fetchOrders(1, pagination.pageSize, value, selectedStatus);
     }, 2000), // API call after 2 seconds of no typing
@@ -123,13 +197,12 @@ const OrderManagement = () => {
 
   // ✅ Handle search input change - immediate UI update
   const handleSearch = (value) => {
-    console.log("🔍 Search input changed:", value);
     setSearchText(value); // Update UI immediately
     debouncedSearch(value); // Debounced API call
   };
 
   // ✅ Handle table change với log chi tiết
-  const handleTableChange = (paginationConfig, filters, sorter) => {
+  const handleTableChange = (paginationConfig) => {
 
 
     const { current, pageSize } = paginationConfig;
@@ -154,13 +227,12 @@ const OrderManagement = () => {
 
   // ✅ Handle refresh
   const handleRefresh = () => {
-    console.log("🔄 Refreshing orders...");
     fetchOrders(pagination.current, pagination.pageSize, searchText, selectedStatus);
+    fetchOrderStats(); // Refresh stats cùng với orders
   };
 
   // ✅ Handle status filter change
   const handleStatusChange = (status) => {
-    console.log("📊 Status filter changed to:", status);
     setSelectedStatus(status || "");
     setPagination(prev => ({ ...prev, current: 1 }));
     fetchOrders(1, pagination.pageSize, searchText, status || "");
@@ -168,7 +240,6 @@ const OrderManagement = () => {
 
   // ✅ Handle clear search and filters
   const handleClearSearch = () => {
-    console.log("🧹 Clearing search and filters");
     setSearchText("");
     setSelectedStatus("");
     setPagination(prev => ({ ...prev, current: 1 }));
@@ -177,14 +248,8 @@ const OrderManagement = () => {
 
 
 
-  // Statistics
-  const stats = {
-    total: orders?.length || 0,
-    pending: orders?.filter(o => o.order_status?.name === 'PENDING')?.length || 0,
-    processing: orders?.filter(o => o.order_status?.name === 'PROCESSING')?.length || 0,
-    completed: orders?.filter(o => ['DELIVERED', 'COMPLETED'].includes(o.order_status?.name))?.length || 0,
-    totalValue: orders?.reduce((sum, o) => sum + (o.total_price || 0), 0) || 0
-  };
+  // Use orderStats from state instead of calculating from orders
+  const stats = orderStats;
 
   const handleViewDetail = (order) => {
     setSelectedOrder(order);
@@ -201,11 +266,13 @@ const OrderManagement = () => {
     setIsUpdateStatusModalVisible(true);
   };
 
-  const handleUpdateStatusSuccess = (id, newStatusId) => {
+  const handleUpdateStatusSuccess = (id) => {
     toast.success(`Cập nhật trạng thái đơn hàng ${id} thành công`);
     setIsUpdateStatusModalVisible(false);
     setSelectedOrder(null);
     fetchOrders(pagination.current, pagination.pageSize, "", selectedStatus);
+    // Refresh stats sau khi update
+    fetchOrderStats();
   };
 
   const handleCloseUpdateStatusModal = () => {
@@ -357,6 +424,22 @@ const OrderManagement = () => {
       )
     },
     {
+      title: "Ngày cập nhật",
+      dataIndex: "updatedAt",
+      key: "updatedAt",
+      render: (date) => (
+        <Text type="secondary">
+          {date ? new Date(date).toLocaleDateString('vi-VN', {
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+            hour: '2-digit',
+            minute: '2-digit'
+          }) : 'N/A'}
+        </Text>
+      )
+    },
+    {
       title: "Hành động",
       key: "action",
       render: (_, record) => (
@@ -414,7 +497,7 @@ const OrderManagement = () => {
           <Card style={{ borderRadius: '12px', border: `1px solid #13C2C230` }}>
             <Statistic
               title={<Text style={{ color: '#0D364C' }}>Tổng đơn hàng</Text>}
-              value={pagination.total || stats.total}
+              value={stats.total || 0}
               prefix={<ShoppingCartOutlined style={{ color: '#13C2C2' }} />}
               valueStyle={{ color: '#13C2C2', fontWeight: 'bold' }}
             />

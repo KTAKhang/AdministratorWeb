@@ -18,16 +18,7 @@ import {
 
 const API_BASE_URL = "https://youtube-fullstack-nodejs-forbeginer.onrender.com/api";
 
-// Helper function to get auth header
-const getAuthHeader = () => {
-    const token = localStorage.getItem('token');
-    return {
-        headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'multipart/form-data'
-        }
-    };
-};
+
 
 // Fetch products with new API structure
 const fetchProducts = async ({ page = 1, limit = 12, search }) => {
@@ -64,11 +55,8 @@ const apiGetAllCategories = async (page = 1, limit = 100) => {
 const createProduct = async (formData) => {
     const token = localStorage.getItem('token');
 
-    // Debug: Log status value trong formData
-    console.log('Status trong formData (create):', formData.get('status'));
-
-    // Ensure all required fields are present
-    const requiredFields = ['name', 'category_id', 'price', 'short_desc', 'detail_desc', 'quantity', 'factory', 'target', 'status'];
+    // Ensure all required fields are present - removed 'status' as API doesn't support it
+    const requiredFields = ['name', 'category_id', 'price', 'short_desc', 'detail_desc', 'quantity', 'factory', 'target'];
     for (const field of requiredFields) {
         if (!formData.get(field) && formData.get(field) !== 'false') {
             throw new Error(`Missing required field: ${field}`);
@@ -78,14 +66,6 @@ const createProduct = async (formData) => {
     // Add default value for sold if not present
     if (!formData.get('sold')) {
         formData.append('sold', '0');
-    }
-
-    // Status sẽ được xử lý từ form, không cần default value ở đây
-
-    // Debug: Log tất cả formData trước khi gửi
-    console.log('All formData before sending (create):');
-    for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
     }
 
     const response = await axios.post(`${API_BASE_URL}/product/create`, formData, {
@@ -101,11 +81,8 @@ const createProduct = async (formData) => {
 const updateProduct = async (id, formData) => {
     const token = localStorage.getItem('token');
 
-    // Debug: Log status value trong formData
-    console.log('Status trong formData (update):', formData.get('status'));
-
-    // Ensure all required fields are present
-    const requiredFields = ['name', 'category_id', 'price', 'short_desc', 'detail_desc', 'quantity', 'factory', 'target', 'status'];
+    // Ensure all required fields are present - removed 'status' as API doesn't support it
+    const requiredFields = ['name', 'category_id', 'price', 'short_desc', 'detail_desc', 'quantity', 'factory', 'target'];
     for (const field of requiredFields) {
         if (!formData.get(field) && formData.get(field) !== 'false') {
             throw new Error(`Missing required field: ${field}`);
@@ -115,12 +92,6 @@ const updateProduct = async (id, formData) => {
     // Add default value for sold if not present
     if (!formData.get('sold')) {
         formData.append('sold', '0');
-    }
-
-    // Debug: Log tất cả formData trước khi gửi
-    console.log('All formData before sending (update):');
-    for (let pair of formData.entries()) {
-        console.log(pair[0] + ': ' + pair[1]);
     }
 
     const response = await axios.put(`${API_BASE_URL}/product/update/${id}`, formData, {
@@ -207,12 +178,28 @@ function* handleFetchProducts(action) {
 function* handleCreateProduct(action) {
     try {
         const { formData, onSuccess } = action.payload;
+        
+        // Debug: Log FormData before sending
+        console.log('=== Saga Debug - Before API Call ===');
+        for (let [key, value] of formData.entries()) {
+            console.log(`${key}:`, value);
+        }
+        console.log('=== End Saga Debug ===');
+        
         const response = yield call(createProduct, formData);
         yield put({ type: CREATE_PRODUCT_SUCCESS, payload: response });
         if (onSuccess) {
             onSuccess();
         }
     } catch (error) {
+        // Enhanced error logging
+        console.error('=== Create Product Error ===');
+        console.error('Status:', error.response?.status);
+        console.error('Data:', error.response?.data);
+        console.error('Headers:', error.response?.headers);
+        console.error('Full error:', error);
+        console.error('=== End Error Debug ===');
+        
         const errorMessage = error.response?.data?.message || error.message;
         yield put({ type: CREATE_PRODUCT_FAILURE, payload: errorMessage });
     }
@@ -235,7 +222,7 @@ function* handleUpdateProduct(action) {
 function* handleDeleteProduct(action) {
     try {
         const { id, onSuccess } = action.payload;
-        const response = yield call(deleteProduct, id);
+        yield call(deleteProduct, id);
         yield put({ type: DELETE_PRODUCT_SUCCESS, payload: id });
         if (onSuccess) {
             onSuccess();

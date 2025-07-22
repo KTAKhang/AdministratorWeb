@@ -48,9 +48,7 @@ const EditProfile = () => {
     try {
       // Simulate API call
       await new Promise(resolve => setTimeout(resolve, 1500));
-
-      console.log('Form values:', { ...values, avatar: avatarUrl });
-      message.success('Cập nhật thông tin thành công!');
+      // message.success('Cập nhật thông tin thành công!');
     } catch (error) {
       message.error('Có lỗi xảy ra khi cập nhật thông tin!');
     } finally {

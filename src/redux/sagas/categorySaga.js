@@ -35,23 +35,9 @@ const fetchCategories = async ({ page, limit, search }) => {
 
 // API function for creating category
 const createCategory = async ({ name, image, token }) => {
-    console.log('🚀 Creating category with API call:', {
-        name,
-        imageName: image?.name,
-        imageSize: image?.size,
-        imageType: image?.type,
-        hasToken: !!token
-    });
-
     const formData = new FormData();
     formData.append('name', name);
     formData.append('image', image);
-
-    // Log FormData contents
-    console.log('📦 FormData contents:');
-    for (let [key, value] of formData.entries()) {
-        console.log(`  ${key}:`, value instanceof File ? `File(${value.name}, ${value.size} bytes)` : value);
-    }
 
     const response = await axios.post(
         `${API_BASE_URL}/category/create`,
@@ -65,7 +51,6 @@ const createCategory = async ({ name, image, token }) => {
         }
     );
 
-    console.log('✅ API Response:', response.data);
     return response.data;
 };
 
@@ -149,31 +134,13 @@ function* handleCreateCategory(action) {
     try {
         const { name, image, token } = action.payload;
 
-        // Add validation logging
-        console.log('🔧 Category creation payload:', {
-            name,
-            hasImage: !!image,
-            imageName: image?.name,
-            imageSize: image?.size,
-            imageType: image?.type,
-            hasToken: !!token
-        });
-
         if (!name || !image || !token) {
             throw new Error('Missing required fields: name, image, or token');
         }
 
         const data = yield call(createCategory, { name, image, token });
-        console.log('✅ Category created successfully:', data);
         yield put(createCategorySuccess(data));
     } catch (error) {
-        console.error('❌ Category creation failed:', {
-            message: error.message,
-            response: error.response?.data,
-            status: error.response?.status
-        });
-
-        // Extract meaningful error message
         let errorMessage = 'Có lỗi xảy ra khi tạo category';
 
         if (error.response?.data) {

@@ -47,13 +47,12 @@ const apiGetAllUsers = async (page = 1, limit = 10, search = "") => {
             url += `&search=${encodeURIComponent(search.trim())}`;
         }
 
-        console.log('🔍 API URL:', url); // Debug log
-
+     
         const response = await axios.get(url, {
             headers: createHeaders()
         });
 
-        console.log('✅ API Response:', response.data); // Debug log
+        
         return response.data;
     } catch (error) {
         console.error('❌ API Error:', error.response?.data || error.message);
@@ -79,8 +78,7 @@ const apiGetUserById = async (userId) => {
 // API call to update user
 const apiUpdateUser = async (userId, userData) => {
     try {
-        console.log('🔍 Original userData:', userData); // Debug log
-
+      
         // Create FormData for multipart/form-data
         const formData = new FormData();
 
@@ -92,19 +90,11 @@ const apiUpdateUser = async (userId, userData) => {
                 // Password luôn được gửi, có thể rỗng như trong CURL example
                 const passwordValue = userData[key] || '';
                 formData.append(key, passwordValue);
-                console.log(`🔍 Password processing: "${userData[key]}" -> "${passwordValue}"`); // Debug log
             } else if (userData[key] !== undefined && userData[key] !== null) {
                 // Gửi trực tiếp như categorySaga, không convert string
                 formData.append(key, userData[key]);
-                console.log(`🔍 Added to FormData: ${key} = ${userData[key]} (type: ${typeof userData[key]})`); // Debug log
             }
         });
-
-        // Debug: Log FormData contents
-        console.log('🔍 FormData contents:');
-        for (let [key, value] of formData.entries()) {
-            console.log(`  ${key}: ${value} (type: ${typeof value})`);
-        }
 
         const response = await axios.put(
             `${API_BASE_URL}/user/update-user/${userId}`,
@@ -114,7 +104,6 @@ const apiUpdateUser = async (userId, userData) => {
             }
         );
 
-        console.log('✅ API Response:', response.data); // Debug log
         return response.data;
     } catch (error) {
         console.error('❌ API Update User Error:', error.response?.data || error.message);
@@ -138,7 +127,6 @@ const formatUserForDisplay = (user) => ({
 function* handleGetAllUsers(action) {
     try {
         const { page = 1, limit = 10, search = "" } = action.payload;
-        console.log('🔍 Saga params:', { page, limit, search }); // Debug log
 
         const response = yield call(apiGetAllUsers, page, limit, search);
 

@@ -128,7 +128,6 @@ const ReviewManagement = () => {
     const [isUpdateStatusModalVisible, setIsUpdateStatusModalVisible] = useState(false);
 
     const fetchReviews = useCallback((page = 1, pageSize = 5, search = "") => {
-        console.log('🔍 fetchReviews called with:', { page, pageSize, search });
 
         dispatch(getAllReviews(page, pageSize, search, ""));
     }, [dispatch]);
@@ -154,7 +153,6 @@ const ReviewManagement = () => {
     // ✅ Handle search with 2 second debounce - API call only
     const debouncedSearch = useCallback(
         debounce((value) => {
-            console.log('🔍 Search API triggered:', value);
             setPagination(prev => ({ ...prev, current: 1 }));
             fetchReviews(1, pagination.pageSize, value);
         }, 2000), // API call after 2 seconds of no typing
@@ -163,7 +161,6 @@ const ReviewManagement = () => {
 
     // ✅ Handle search input change - immediate UI update
     const handleSearch = (value) => {
-        console.log('🔍 Search input changed:', value);
         setSearchText(value); // Update UI immediately
         debouncedSearch(value); // Debounced API call
     };

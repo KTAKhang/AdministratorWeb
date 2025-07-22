@@ -197,7 +197,6 @@ function* handleGetNewCustomers(action) {
         const response = yield call(apiGetNewCustomers, startDate, endDate);
 
         if (response.status === 'OK') {
-            console.log('🔍 New Customers API Response:', response.data);
             yield put(getNewCustomersSuccess(response.data));
         } else {
             throw new Error(response.message || 'Failed to fetch new customers');
@@ -215,7 +214,6 @@ function* handleGetSalesByDate(action) {
         const response = yield call(apiGetSalesByDate, startDate, endDate);
 
         if (response.status === 'OK') {
-            console.log('🔍 Sales By Date API Response:', response.data);
             yield put(getSalesByDateSuccess(response.data));
         } else {
             throw new Error(response.message || 'Failed to fetch sales by date');
@@ -250,10 +248,6 @@ function* handleGetCompleteDashboard(action) {
         const response = yield call(apiGetCompleteDashboard, startDate, endDate);
 
         if (response.status === 'OK') {
-            console.log('🔍 Complete Dashboard API Response:', JSON.stringify(response.data, null, 2));
-            console.log('📊 Sales By Date:', response.data?.salesByDate);
-            console.log('👥 New Customers By Date:', response.data?.newCustomersByDate);
-            console.log('💰 Revenue By Date:', response.data?.revenueByDate);
             yield put(getCompleteDashboardSuccess(response.data));
         } else {
             throw new Error(response.message || 'Failed to fetch complete dashboard');

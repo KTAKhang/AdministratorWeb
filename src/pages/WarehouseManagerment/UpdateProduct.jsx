@@ -92,12 +92,6 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
         category_id: categoryId,
       };
 
-      console.log('🔍 ProductData status:', productData.status);
-      console.log('🔍 Current status value:', currentStatus);
-      console.log('🔍 Available categories:', categories.length);
-      console.log('🔍 CategoryDetail:', productData.categoryDetail);
-      console.log('🔍 Extracted category ID:', categoryId);
-
       form.setFieldsValue(formValues);
       setStatusValue(currentStatus);
 
@@ -132,7 +126,6 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
 
       // Only update if current value is empty/null but we have a valid expected value
       if (!currentCategoryId && expectedCategoryId) {
-        console.log('🔄 Re-setting category_id after categories loaded:', expectedCategoryId);
         form.setFieldValue('category_id', expectedCategoryId);
       }
     }
@@ -168,15 +161,6 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
       if (!token) {
         message.error('Vui lòng đăng nhập để thực hiện chức năng này!');
         return;
-      }
-
-      // Log form data for debugging
-      console.log('📤 Form values being submitted:', values);
-      console.log('📤 Category ID being sent:', values.category_id);
-      console.log('📤 Status value being sent:', values.status);
-      console.log('📤 FormData entries:');
-      for (let pair of formData.entries()) {
-        console.log(`  ${pair[0]}: ${pair[1]}`);
       }
 
       dispatch(updateProductRequest(productData._id, formData, () => {
@@ -291,10 +275,8 @@ const UpdateProduct = ({ visible, productData, onClose, onSuccess }) => {
                 option?.children?.toLowerCase().indexOf(input.toLowerCase()) >= 0
               }
               onChange={(value) => {
-                console.log('🔄 Category selection changed to:', value);
                 const selectedCategory = activeCategories.find(cat => cat._id === value);
                 if (selectedCategory) {
-                  console.log('🔄 Selected category name:', selectedCategory.name);
                 }
               }}
               notFoundContent={

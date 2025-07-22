@@ -50,7 +50,7 @@ const ProfileManager = () => {
     if (updateSuccess) {
       setEditMode(false);
       setAvatarFile(null);
-      message.success('Cập nhật thông tin thành công!');
+      // message.success('Cập nhật thông tin thành công!');
 
       // Update localStorage first
       const storedUser = JSON.parse(localStorage.getItem("user"));
@@ -109,7 +109,7 @@ const ProfileManager = () => {
       setAvatarFile(file);
       const url = URL.createObjectURL(file);
       setAvatarUrl(url);
-      message.success('Tải ảnh đại diện thành công!');
+      // message.success('Tải ảnh đại diện thành công!');
     }
   };
 

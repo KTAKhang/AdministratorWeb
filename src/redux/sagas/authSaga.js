@@ -1,5 +1,5 @@
 // sagas/authSaga.js
-import { all, call, put, takeLatest } from "redux-saga/effects";
+import { call, put, takeLatest } from "redux-saga/effects";
 import { toast } from "react-toastify";
 import {
     LOGIN_REQUEST,
@@ -84,7 +84,7 @@ function* loginSaga(action) {
         localStorage.setItem("user", JSON.stringify(data.data));
 
         yield put(loginSuccess(data));
-        toast.success(data.message || "Login successful");
+        toast.success(data.message || "Đăng nhập thành công");
     } catch (error) {
         yield put(loginFailure(error.message));
         toast.error(error.message);
@@ -118,7 +118,7 @@ function* resetPasswordSaga(action) {
 
         if (response.status === 'OK') {
             yield put(resetPasswordSuccess(response.message));
-            toast.success(response.message || 'Mật khẩu đã được đặt lại thành công!');
+            // Toast removed - will be handled by component
         } else {
             throw new Error(response.message || 'Đặt lại mật khẩu thất bại');
         }
@@ -131,14 +131,12 @@ function* resetPasswordSaga(action) {
 
 // Logout saga
 function* handleLogout() {
-    try {
+    yield call(() => {
         localStorage.removeItem("token");
         localStorage.removeItem("role");
         localStorage.removeItem("user");
-        toast.success("Logout successful");
-    } catch (error) {
-        toast.error("Logout failed");
-    }
+    });
+    toast.success("Đăng xuất thành công");
 }
 
 // Root saga
