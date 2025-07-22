@@ -1,19 +1,13 @@
 import { useState, useEffect, useCallback } from "react";
 import { useDispatch, useSelector } from "react-redux";
-import { Card, Row, Col, Statistic, Typography, Progress, Badge, Avatar, Spin, Input, Button } from "antd";
+import { Card, Row, Col, Typography, Input, Button, Spin, Badge } from "antd";
 import {
   UserOutlined,
   ShoppingCartOutlined,
   DollarOutlined,
-  ShoppingOutlined,
-  ArrowUpOutlined,
-  ArrowDownOutlined,
-  EyeOutlined,
-  HeartOutlined,
   TeamOutlined,
   GiftOutlined,
   ClockCircleOutlined,
-  SyncOutlined,
 } from "@ant-design/icons";
 import {
   getRevenueByMonthRequest,
@@ -73,8 +67,7 @@ export default function AdminPage() {
       const d1 = new Date(date1).toISOString().split('T')[0];
       const d2 = new Date(date2).toISOString().split('T')[0];
       return d1 === d2;
-    } catch (error) {
-      console.error('Date comparison error:', error);
+    } catch {
       return false;
     }
   };
@@ -110,7 +103,6 @@ export default function AdminPage() {
     const handleStorageChange = (event) => {
       // Lắng nghe sự kiện cập nhật đơn hàng từ các tab khác
       if (event.key === 'orderUpdated' && event.newValue) {
-        console.log('📢 Order updated in another tab, refreshing dashboard...');
         refreshDashboardData();
         // Clear the flag để tránh trigger nhiều lần
         localStorage.removeItem('orderUpdated');
@@ -132,85 +124,48 @@ export default function AdminPage() {
 
   // Transform API data for chart
   const areaData = revenueByMonth.length > 0
-    ? revenueByMonth.map((item, index) => ({
+    ? revenueByMonth.map((item) => ({
       month: `Tháng ${item.month}`,
-      doanhSo: item.totalRevenue / 1000, // Convert to thousands
-      loiNhuan: item.totalRevenue * 0.7 / 1000, // Estimated profit margin
+      DoanhThu: item.totalRevenue / 1000, 
     }))
     : [
-      { month: "Tháng 1", doanhSo: 255, loiNhuan: 180 },
-      { month: "Tháng 2", doanhSo: 180, loiNhuan: 100 },
-      { month: "Tháng 3", doanhSo: 280, loiNhuan: 200 },
-      { month: "Tháng 4", doanhSo: 350, loiNhuan: 250 },
-      { month: "Tháng 5", doanhSo: 420, loiNhuan: 300 },
-      { month: "Tháng 6", doanhSo: 500, loiNhuan: 350 },
-      { month: "Tháng 7", doanhSo: 500, loiNhuan: 280 },
-      { month: "Tháng 8", doanhSo: 310, loiNhuan: 200 },
-      { month: "Tháng 9", doanhSo: 360, loiNhuan: 600 },
-      { month: "Tháng 10", doanhSo: 270, loiNhuan: 180 },
-      { month: "Tháng 11", doanhSo: 400, loiNhuan: 300 },
-      { month: "Tháng 12", doanhSo: 480, loiNhuan: 350 },
     ];
 
   // Get today's actual data from API
   const getTodayRevenue = () => {
-    console.log('🔍 Revenue By Date Debug:', {
-      revenueByDate,
-      length: revenueByDate?.length,
-      today: getCurrentDate()
-    });
-
     if (revenueByDate && revenueByDate.length > 0) {
       // Tìm dữ liệu của hôm nay (có thể có nhiều ngày trong response)
       const today = getCurrentDate();
       const todayData = revenueByDate.find(item => {
         const isToday = isSameDate(item.date, today);
-        console.log('🔍 Comparing revenue dates:', { itemDate: item.date, today, isToday, item });
         return isToday;
       });
-      console.log('🔍 Today Revenue Data:', todayData);
       return todayData?.totalRevenue || 0;
     }
     return 0;
   };
 
   const getTodayNewCustomers = () => {
-    console.log('🔍 New Customers Debug:', {
-      newCustomers,
-      length: newCustomers?.length,
-      today: getCurrentDate()
-    });
-
     if (newCustomers && newCustomers.length > 0) {
       // Tìm dữ liệu của hôm nay
       const today = getCurrentDate();
       const todayData = newCustomers.find(item => {
         const isToday = isSameDate(item.date, today);
-        console.log('🔍 Comparing new customers dates:', { itemDate: item.date, today, isToday, item });
         return isToday;
       });
-      console.log('🔍 Today New Customers Data:', todayData);
       return todayData?.newCustomers || todayData?.newCustomerCount || todayData?.count || todayData?.totalNewCustomers || 0;
     }
     return 0;
   };
 
   const getTodaySales = () => {
-    console.log('🔍 Sales By Date Debug:', {
-      salesByDate,
-      length: salesByDate?.length,
-      today: getCurrentDate()
-    });
-
     if (salesByDate && salesByDate.length > 0) {
       // Tìm dữ liệu của hôm nay
       const today = getCurrentDate();
       const todayData = salesByDate.find(item => {
         const isToday = isSameDate(item.date, today);
-        console.log('🔍 Comparing sales dates:', { itemDate: item.date, today, isToday, item });
         return isToday;
       });
-      console.log('🔍 Today Sales Data:', todayData);
       return todayData?.totalSoldQuantity || todayData?.totalOrders || todayData?.totalAmount || todayData?.orderCount || 0;
     }
     return 0;
@@ -446,7 +401,7 @@ export default function AdminPage() {
                       bottom: 30, // Để chỗ cho month labels
                       left: `${(index / (areaData.length - 1)) * 90}%`,
                       width: "8px",
-                      height: `${Math.min((item.doanhSo / 500) * 100, 100)}%`,
+                      height: `${Math.min((item.DoanhThu / 500) * 100, 100)}%`,
                       background: "linear-gradient(to top, #0D364C, #13C2C2)",
                       borderRadius: "4px 4px 0 0",
                       transition: "all 0.3s ease",
@@ -461,7 +416,7 @@ export default function AdminPage() {
                         color: "#0D364C",
                         fontWeight: "600"
                       }}>
-                        {Math.round(item.doanhSo)}
+                        {Math.round(item.DoanhThu)}
                       </div>
                     </div>
                   ))}

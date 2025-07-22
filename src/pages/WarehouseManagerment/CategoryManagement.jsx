@@ -98,7 +98,7 @@ const CategoryManagement = () => {
           prevPagination.pageSize !== newPagination.pageSize ||
           prevPagination.total !== newPagination.total
         ) {
-          console.log("📊 Updating pagination:", newPagination);
+          
           return newPagination;
         }
         return prevPagination;
@@ -110,7 +110,6 @@ const CategoryManagement = () => {
   const debouncedSearch = useCallback(
     debounce((value) => {
       if (!mounted.current) return;
-      console.log("🔍 Search API triggered for category:", value);
       fetchCategories(1, 5, value);
     }, 2000),
     [] // FIX: Bỏ fetchCategories khỏi dependency
@@ -118,7 +117,6 @@ const CategoryManagement = () => {
 
   // Handle search input change
   const handleSearch = useCallback((value) => {
-    console.log("🔍 Search input changed:", value);
     setSearchText(value);
     setPagination(prev => ({ ...prev, current: 1 }));
     debouncedSearch(value);
@@ -131,8 +129,6 @@ const CategoryManagement = () => {
     const { current, pageSize } = paginationConfig;
     const newCurrent = current || 1;
     const newPageSize = pageSize || 5;
-
-    console.log("📄 Table pagination changed:", { current: newCurrent, pageSize: newPageSize });
 
     // Update local pagination state
     setPagination(prev => ({
@@ -148,7 +144,6 @@ const CategoryManagement = () => {
   // Handle refresh
   const handleRefresh = useCallback(() => {
     if (!mounted.current) return;
-    console.log("🔄 Refreshing categories...");
     fetchCategories(pagination.current, pagination.pageSize, searchText);
   }, [pagination.current, pagination.pageSize, searchText]); // FIX: Bỏ fetchCategories khỏi dependency
 

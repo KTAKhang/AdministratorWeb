@@ -91,7 +91,7 @@ const ProductManagement = () => {
   // Handle search with debounce 2 giây - API call only
   const debouncedSearch = useCallback(
     debounce((value) => {
-      console.log("🔍 Search API triggered for product:", value);
+      // console.log("🔍 Search API triggered for product:", value);
       setPagination(prev => ({ ...prev, current: 1 }));
       fetchProducts(1, 5, value);
     }, 2000), // API call after 2 seconds of no typing

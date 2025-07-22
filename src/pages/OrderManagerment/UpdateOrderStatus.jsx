@@ -38,7 +38,6 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   const dispatch = useDispatch();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [hasShownToast, setHasShownToast] = useState(false);
-  const [currentStatusId, setCurrentStatusId] = useState(null);
   const previousStateRef = useRef({ updateLoading: false, updateError: null });
 
   // Get loading and error states from Redux
@@ -46,57 +45,15 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
 
   // Debug: Log state changes
   useEffect(() => {
-    console.log('🔍 Redux State Changed:', {
-      updateLoading,
-      updateError,
-      isSubmitting,
-      visible,
-      orderId: orderData?.order_id
-    });
   }, [updateLoading, updateError, isSubmitting, visible, orderData?.order_id]);
 
   // Reset form when modal opens
   useEffect(() => {
     if (visible && orderData) {
-      console.log('🔍 Debug orderData:', {
-        orderData,
-        order_status_id: orderData.order_status_id,
-        order_status: orderData.order_status,
-        order_status_name: orderData.order_status?.name,
-        order_status_description: orderData.order_status?.description
-      });
-
-      // Thử nhiều cách để lấy status ID để set vào form
-      let statusIdToSet = orderData.order_status_id;
-
-      // Nếu không có order_status_id, thử lấy từ order_status object
-      if (!statusIdToSet && orderData?.order_status?._id) {
-        statusIdToSet = orderData.order_status._id;
-      }
-
-      // Nếu vẫn không có, thử lấy từ order_status.id
-      if (!statusIdToSet && orderData?.order_status?.id) {
-        statusIdToSet = orderData.order_status.id;
-      }
-
-      // Nếu vẫn không có ID nhưng có name, tìm ID từ name
-      if (!statusIdToSet && orderData?.order_status?.name) {
-        const statusByName = sampleStatusOptions.find(status =>
-          status.name === orderData.order_status.name
-        );
-        statusIdToSet = statusByName?.id;
-      }
-
-      console.log('🔍 Status ID to set in form:', statusIdToSet);
-
-      // Set current status ID và form value
-      setCurrentStatusId(statusIdToSet);
-      form.setFieldsValue({ order_status_id: statusIdToSet });
-
-      console.log('🔍 Setting currentStatusId to:', statusIdToSet);
+      // Reset form to empty state instead of setting current status
+      form.resetFields();
       setIsSubmitting(false);
       setHasShownToast(false);
-      console.log('🔄 Modal opened, form reset');
     }
   }, [visible, orderData, form]);
 
@@ -104,12 +61,6 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   const checkOrderUpdated = (orderId, newStatusId) => {
     const updatedOrder = orders.find(order => order.order_id === orderId);
     const wasUpdated = updatedOrder && updatedOrder.order_status_id === newStatusId;
-    console.log('🎯 Order Update Check:', {
-      orderId,
-      newStatusId,
-      currentStatusInStore: updatedOrder?.order_status_id,
-      wasUpdated
-    });
     return wasUpdated;
   };
 
@@ -117,14 +68,6 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   useEffect(() => {
     const prevState = previousStateRef.current;
     const newStatusId = form.getFieldValue('order_status_id');
-
-    console.log('📊 State Transition:', {
-      from: prevState,
-      to: { updateLoading, updateError },
-      isSubmitting,
-      visible
-    });
-
     // Loading finished
     if (prevState.updateLoading && !updateLoading && isSubmitting && visible && !hasShownToast) {
       // Check if order was actually updated in Redux store
@@ -132,7 +75,6 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
 
       if (orderWasUpdated) {
         // // Order was updated successfully despite error message
-        // console.log('✅ Order updated successfully (despite error message)');
         // toast.success("Cập nhật trạng thái đơn hàng thành công");
         setHasShownToast(true);
 
@@ -142,18 +84,13 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
         }, 500);
       } else if (updateError) {
         // Actual failure
-        console.log('❌ Order update failed:', updateError);
         toast.error(`Lỗi cập nhật: ${updateError}`);
         setIsSubmitting(false);
       } else {
-        // Success case (no error, no update detected yet - might be timing issue)
-        console.log('⚠️ Success case but no update detected in store yet');
         // Wait a bit more for store to update
         setTimeout(() => {
           const delayed_orderWasUpdated = checkOrderUpdated(orderData.order_id, newStatusId);
           if (delayed_orderWasUpdated) {
-            // console.log('✅ Order updated successfully (delayed detection)');
-            // toast.success("Cập nhật trạng thái đơn hàng thành công");
             setHasShownToast(true);
             onSuccess && onSuccess(orderData.order_id, newStatusId);
             setTimeout(() => {
@@ -169,10 +106,7 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   }, [updateLoading, updateError, isSubmitting, visible, hasShownToast, orders, orderData, form, onSuccess]);
 
   const handleFinish = (values) => {
-    console.log('🎯 HandleFinish values:', values);
     const { order_status_id: newStatusId } = values;
-    console.log('🎯 NewStatusId from values:', newStatusId);
-
     // Lấy currentStatusId chính xác
     let currentStatusId = orderData.order_status_id;
 
@@ -194,27 +128,11 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
       currentStatusId = statusByName?.id;
     }
 
-    console.log('🚀 Submitting update:', {
-      orderId: orderData.order_id,
-      currentStatus: currentStatusId,
-      newStatus: newStatusId,
-      values
-    });
 
     // Kiểm tra validation luồng trạng thái
     if (!isStatusTransitionValid(currentStatusId, newStatusId)) {
       const currentStatus = sampleStatusOptions.find(s => s.id === currentStatusId);
       const newStatus = sampleStatusOptions.find(s => s.id === newStatusId);
-
-      console.log('❌ Status transition validation failed:', {
-        currentStatusId,
-        newStatusId,
-        currentStatus,
-        newStatus,
-        currentStatusName: currentStatus?.name,
-        newStatusName: newStatus?.name
-      });
-
       toast.error(
         `Không thể chuyển từ "${currentStatus?.name}" sang "${newStatus?.name}". ` +
         `Vui lòng tuân thủ luồng trạng thái quy định.`
@@ -228,13 +146,14 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
       return;
     }
 
+    
+
     setIsSubmitting(true);
     setHasShownToast(false);
     dispatch(updateOrderRequest(orderData.order_id, values));
   };
 
   const handleClose = () => {
-    console.log('🔒 Closing modal');
     form.resetFields();
     setIsSubmitting(false);
     setHasShownToast(false);
@@ -255,14 +174,6 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
     if (!statusId && orderData?.order_status?.id) {
       statusId = orderData.order_status.id;
     }
-
-    console.log('🔍 getCurrentStatusName Debug:', {
-      statusId,
-      orderData_order_status_id: orderData?.order_status_id,
-      orderData_order_status: orderData?.order_status,
-      orderData_order_status_name: orderData?.order_status?.name
-    });
-
     // Tìm trong sampleStatusOptions
     let currentStatus = sampleStatusOptions.find(status => status.id === statusId);
 
@@ -296,15 +207,9 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
       const statusByName = sampleStatusOptions.find(status =>
         status.name === orderData.order_status.name
       );
-      console.log('🔍 getCurrentStatusKey - Found by name:', statusByName);
+
       return statusByName?.key || '';
     }
-
-    console.log('🔍 getCurrentStatusKey result:', {
-      statusId,
-      currentStatus,
-      statusKey: currentStatus?.key
-    });
 
     return currentStatus?.key || '';
   };
@@ -313,19 +218,10 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
   const getAllowedStatuses = () => {
     const currentStatusKey = getCurrentStatusKey();
     const allowedKeys = STATUS_FLOW_RULES[currentStatusKey] || [];
-
-    console.log('🔄 Status Flow Check:', {
-      currentStatusKey,
-      allowedKeys,
-      currentStatusId: orderData?.order_status_id
-    });
-
     // Return the status options that are allowed
     const allowedStatuses = sampleStatusOptions.filter(status =>
       allowedKeys.includes(status.key)
     );
-
-    console.log('🔄 Allowed statuses:', allowedStatuses);
 
     return allowedStatuses;
   };
@@ -335,28 +231,20 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
     const fromStatus = sampleStatusOptions.find(s => s.id === fromStatusId);
     const toStatus = sampleStatusOptions.find(s => s.id === toStatusId);
 
-    console.log('🔄 isStatusTransitionValid check:', {
-      fromStatusId,
-      toStatusId,
-      fromStatus,
-      toStatus,
-      fromStatusKey: fromStatus?.key,
-      toStatusKey: toStatus?.key
-    });
-
     if (!fromStatus || !toStatus) {
-      console.log('❌ fromStatus or toStatus not found');
       return false;
     }
 
     const allowedKeys = STATUS_FLOW_RULES[fromStatus.key] || [];
-    console.log('✅ Allowed keys for', fromStatus.key, ':', allowedKeys);
     const isValid = allowedKeys.includes(toStatus.key);
-    console.log('✅ Is transition valid?', isValid);
 
     return isValid;
   };
-
+// const order_status_name = orderData?.order_status.name;
+// console.log('🔍 order_status_name:', orderData.order_status.name);
+// console.log('🔍 order_status_id:', orderData.order_status.id);
+// console.log('🔍 order_status_id:', orderData);
+// console.log('🔍 order_description:', orderData.items[0].product_id);
   return (
     <Modal
       open={visible}
@@ -466,9 +354,9 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
                 {(() => {
                   const allowedStatuses = getAllowedStatuses();
                   if (allowedStatuses.length === 0) {
-                    return '❌ Không thể chuyển sang trạng thái nào khác.';
+                    return 'Không thể chuyển sang trạng thái nào khác.';
                   }
-                  return `✅ Có thể chuyển sang: ${allowedStatuses.map(s => s.name).join(', ')}`;
+                  return `Có thể chuyển sang: ${allowedStatuses.map(s => s.name).join(', ')}`;
                 })()}
               </div>
             </div>
@@ -485,14 +373,11 @@ const UpdateOrderStatus = ({ visible, orderData, onClose, onSuccess }) => {
               name="order_status_id"
               rules={[{ required: true, message: "Vui lòng chọn trạng thái!" }]}
             >
-              <Select
-                placeholder="Chọn trạng thái đơn hàng"
+                            <Select
                 style={{ width: '100%' }}
                 disabled={updateLoading}
                 showSearch={false}
-                onChange={(value) => {
-                  setCurrentStatusId(value);
-                }}
+                placeholder="Chọn trạng thái mới..."
               >
                 {(() => {
                   const allowedStatuses = getAllowedStatuses();

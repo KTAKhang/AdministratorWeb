@@ -6,6 +6,9 @@ import {
     UPDATE_USER_REQUEST,
     UPDATE_USER_SUCCESS,
     UPDATE_USER_FAILURE,
+    CHANGE_PASSWORD_REQUEST,
+    CHANGE_PASSWORD_SUCCESS,
+    CHANGE_PASSWORD_FAILURE,
 } from "../actions/profileActions";
 
 const initialState = {
@@ -15,6 +18,9 @@ const initialState = {
     updateLoading: false,
     updateError: null,
     updateSuccess: false,
+    changePasswordLoading: false,
+    changePasswordError: null,
+    changePasswordSuccess: false,
 };
 
 const userReducer = (state = initialState, action) => {
@@ -62,6 +68,29 @@ const userReducer = (state = initialState, action) => {
                 updateLoading: false,
                 updateError: action.payload,
                 updateSuccess: false,
+            };
+
+        // Change password cases
+        case CHANGE_PASSWORD_REQUEST:
+            return {
+                ...state,
+                changePasswordLoading: true,
+                changePasswordError: null,
+                changePasswordSuccess: false,
+            };
+        case CHANGE_PASSWORD_SUCCESS:
+            return {
+                ...state,
+                changePasswordLoading: false,
+                changePasswordError: null,
+                changePasswordSuccess: true,
+            };
+        case CHANGE_PASSWORD_FAILURE:
+            return {
+                ...state,
+                changePasswordLoading: false,
+                changePasswordError: action.payload,
+                changePasswordSuccess: false,
             };
 
         default:

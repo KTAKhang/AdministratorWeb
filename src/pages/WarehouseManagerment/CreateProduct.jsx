@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Form, Input, Button, Card, Switch, Upload, Modal, InputNumber, Select, Typography, Space, Divider, message } from "antd";
+import { Form, Input, Button, Card, Upload, Modal, InputNumber, Select, Typography, Space, Divider, message } from "antd";
 import {
   PlusOutlined,
   CameraOutlined,
@@ -22,7 +22,6 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
   const [previewImage, setPreviewImage] = useState("");
   const [modalVisible, setModalVisible] = useState(false);
   const [fileList, setFileList] = useState([]);
-  const [switchValue, setSwitchValue] = useState(true);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const dispatch = useDispatch();
@@ -41,14 +40,12 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
     if (!visible) {
       form.resetFields();
       setFileList([]);
-      setSwitchValue(true);
       setPreviewImage("");
       setModalVisible(false);
       setIsSubmitting(false);
     } else {
       // Khi mở modal, đảm bảo form có giá trị mặc định đúng
-      form.setFieldsValue({ status: true });
-      setSwitchValue(true);
+      form.setFieldsValue({ quantity: 1, price: 1000 });
     }
   }, [visible, form]);
 
@@ -64,9 +61,6 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
     try {
       setIsSubmitting(true);
 
-      console.log('📤 Form values received:', values);
-
-      // Validate required fields
       const requiredFields = ['name', 'category_id', 'price', 'short_desc', 'detail_desc', 'quantity', 'factory', 'target'];
       for (const field of requiredFields) {
         if (!values[field] && values[field] !== 0) {
@@ -74,6 +68,13 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
           setIsSubmitting(false);
           return;
         }
+      }
+
+      // Validate category exists
+      if (!activeCategories.find(cat => cat._id === values.category_id)) {
+        message.error('Danh mục được chọn không hợp lệ!');
+        setIsSubmitting(false);
+        return;
       }
 
       // Get image file from form or fileList
@@ -86,6 +87,22 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
 
       if (!imageFile) {
         message.error('Vui lòng chọn hình ảnh cho sản phẩm!');
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Validate image file
+      const allowedTypes = ['image/jpeg', 'image/jpg', 'image/png'];
+      const maxSize = 2 * 1024 * 1024; // 2MB
+
+      if (!allowedTypes.includes(imageFile.type)) {
+        message.error('Chỉ hỗ trợ file ảnh định dạng JPG, JPEG, PNG!');
+        setIsSubmitting(false);
+        return;
+      }
+
+      if (imageFile.size > maxSize) {
+        message.error('Kích thước file ảnh không được vượt quá 2MB!');
         setIsSubmitting(false);
         return;
       }
@@ -107,28 +124,29 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
       // Add all required fields
       formData.append('name', values.name.trim());
       formData.append('category_id', values.category_id);
-      formData.append('price', values.price.toString());
+      formData.append('price', values.price);
       formData.append('short_desc', values.short_desc.trim());
       formData.append('detail_desc', values.detail_desc.trim());
-      formData.append('quantity', values.quantity.toString());
+      formData.append('quantity', values.quantity);
       formData.append('factory', values.factory.trim());
       formData.append('target', values.target.trim());
-      formData.append('status', values.status ? 'true' : 'false');
-      formData.append('sold', '0'); // Default value
+      formData.append('sold', 0); // Default value
 
-      console.log('📦 FormData being sent:');
-      for (let pair of formData.entries()) {
-        console.log(`  ${pair[0]}:`, pair[1] instanceof File ? `File(${pair[1].name})` : pair[1]);
+      
+      for (let [key, value] of formData.entries()) {
+        console.log(key + ': ', value);
       }
+     
 
       // Dispatch create action
       dispatch(createProductRequest({
         formData,
         onSuccess: () => {
-          message.success('Tạo sản phẩm thành công!');
+          // message.success('Tạo sản phẩm thành công!');
           form.resetFields();
           setFileList([]);
-          setSwitchValue(true);
+          setPreviewImage("");
+          setModalVisible(false);
           setIsSubmitting(false);
           onSuccess && onSuccess();
           onClose && onClose();
@@ -151,12 +169,6 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
   };
 
   const handleChange = ({ fileList: newFileList }) => setFileList(newFileList);
-
-  const handleSwitchChange = (checked) => {
-    setSwitchValue(checked);
-    // FIX: Cập nhật giá trị boolean trong form thay vì string
-    form.setFieldsValue({ status: checked });
-  };
 
   const getBase64 = (file) =>
     new Promise((resolve, reject) => {
@@ -251,7 +263,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                 form={form}
                 layout="vertical"
                 onFinish={handleFinish}
-                initialValues={{ status: true, quantity: 1, price: 0 }}
+                                  initialValues={{ quantity: 1, price: 1000 }}
                 size="large"
               >
                 <Form.Item
@@ -262,7 +274,7 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     </Space>
                   }
                   name="category_id"
-                  rules={[{ required: true, message: "Vui lòng chọn danh mục!" }]}
+                  rules={[{ required: true, message: "Vui lòng chọn danh mục sản phẩm!" }]}
                 >
                   <Select
                     placeholder="Chọn danh mục sản phẩm"
@@ -290,11 +302,18 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     </Space>
                   }
                   name="name"
-                  rules={[{ required: true, message: "Vui lòng nhập tên sản phẩm!" }]}
+                  rules={[
+                    { required: true, message: "Vui lòng nhập tên sản phẩm!" },
+                    { min: 2, message: "Tên sản phẩm phải có ít nhất 2 ký tự!" },
+                    { max: 100, message: "Tên sản phẩm không được vượt quá 100 ký tự!" },
+                    { whitespace: true, message: "Tên sản phẩm không được chỉ chứa khoảng trắng!" }
+                  ]}
                 >
                   <Input
-                    placeholder="Nhập tên sản phẩm"
+                    placeholder="Nhập tên sản phẩm (2-100 ký tự)"
                     style={customStyles.input}
+                    maxLength={100}
+                    showCount
                   />
                 </Form.Item>
 
@@ -307,14 +326,16 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   }
                   name="price"
                   rules={[
-                    { required: true, message: "Vui lòng nhập giá!" },
-                    { type: 'number', min: 0, message: "Giá không được âm!" }
+                    { required: true, message: "Vui lòng nhập giá sản phẩm!" },
+                    { type: 'number', min: 1000, message: "Giá sản phẩm phải ít nhất 1,000 VNĐ!" },
+                    { type: 'number', max: 1000000000, message: "Giá sản phẩm không được vượt quá 1 tỷ VNĐ!" }
                   ]}
                 >
                   <InputNumber
-                    min={0}
+                    min={1000}
+                    max={1000000000}
                     style={{ width: '100%', ...customStyles.input }}
-                    placeholder="Nhập giá sản phẩm"
+                    placeholder="Nhập giá sản phẩm (tối thiểu 1,000 VNĐ)"
                     formatter={value => `${value}`.replace(/\B(?=(\d{3})+(?!\d))/g, ',')}
                     parser={value => value.replace(/\$\s?|(,*)/g, '')}
                   />
@@ -329,14 +350,25 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                   }
                   name="quantity"
                   rules={[
-                    { required: true, message: "Vui lòng nhập số lượng!" },
-                    { type: 'number', min: 0, message: "Số lượng không được âm!" }
+                    { required: true, message: "Vui lòng nhập số lượng sản phẩm!" },
+                    { type: 'number', min: 1, message: "Số lượng phải ít nhất là 1!" },
+                    { type: 'number', max: 100000, message: "Số lượng không được vượt quá 100,000!" },
+                    {
+                      validator: (_, value) => {
+                        if (value && !Number.isInteger(value)) {
+                          return Promise.reject(new Error('Số lượng phải là số nguyên!'));
+                        }
+                        return Promise.resolve();
+                      }
+                    }
                   ]}
                 >
                   <InputNumber
-                    min={0}
+                    min={1}
+                    max={100000}
                     style={{ width: '100%', ...customStyles.input }}
-                    placeholder="Nhập số lượng"
+                    placeholder="Nhập số lượng (1-100,000)"
+                    precision={0}
                   />
                 </Form.Item>
 
@@ -348,12 +380,19 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     </Space>
                   }
                   name="short_desc"
-                  rules={[{ required: true, message: "Vui lòng nhập mô tả ngắn!" }]}
+                  rules={[
+                    { required: true, message: "Vui lòng nhập mô tả ngắn!" },
+                    { min: 10, message: "Mô tả ngắn phải có ít nhất 10 ký tự!" },
+                    { max: 200, message: "Mô tả ngắn không được vượt quá 200 ký tự!" },
+                    { whitespace: true, message: "Mô tả ngắn không được chỉ chứa khoảng trắng!" }
+                  ]}
                 >
                   <Input.TextArea
                     rows={2}
-                    placeholder="Nhập mô tả ngắn"
+                    placeholder="Nhập mô tả ngắn (ít nhất 10 ký tự)"
                     style={{ borderRadius: '8px' }}
+                    showCount
+                    maxLength={200}
                   />
                 </Form.Item>
 
@@ -365,12 +404,19 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     </Space>
                   }
                   name="detail_desc"
-                  rules={[{ required: true, message: "Vui lòng nhập mô tả chi tiết!" }]}
+                  rules={[
+                    { required: true, message: "Vui lòng nhập mô tả chi tiết!" },
+                    { min: 10, message: "Mô tả chi tiết phải có ít nhất 10 ký tự!" },
+                    { max: 1000, message: "Mô tả chi tiết không được vượt quá 1,000 ký tự!" },
+                    { whitespace: true, message: "Mô tả chi tiết không được chỉ chứa khoảng trắng!" }
+                  ]}
                 >
                   <Input.TextArea
                     rows={4}
-                    placeholder="Nhập mô tả chi tiết"
+                    placeholder="Nhập mô tả chi tiết (ít nhất 10 ký tự)"
                     style={{ borderRadius: '8px' }}
+                    showCount
+                    maxLength={1000}
                   />
                 </Form.Item>
 
@@ -382,11 +428,18 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     </Space>
                   }
                   name="factory"
-                  rules={[{ required: true, message: "Vui lòng nhập nhà sản xuất!" }]}
+                  rules={[
+                    { required: true, message: "Vui lòng nhập nhà sản xuất!" },
+                    { min: 2, message: "Tên nhà sản xuất phải có ít nhất 2 ký tự!" },
+                    { max: 100, message: "Tên nhà sản xuất không được vượt quá 100 ký tự!" },
+                    { whitespace: true, message: "Tên nhà sản xuất không được chỉ chứa khoảng trắng!" }
+                  ]}
                 >
                   <Input
-                    placeholder="Nhập nhà sản xuất"
+                    placeholder="Nhập nhà sản xuất (2-100 ký tự)"
                     style={customStyles.input}
+                    maxLength={100}
+                    showCount
                   />
                 </Form.Item>
 
@@ -398,11 +451,18 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     </Space>
                   }
                   name="target"
-                  rules={[{ required: true, message: "Vui lòng nhập đối tượng!" }]}
+                  rules={[
+                    { required: true, message: "Vui lòng nhập đối tượng sử dụng!" },
+                    { min: 2, message: "Đối tượng sử dụng phải có ít nhất 2 ký tự!" },
+                    { max: 100, message: "Đối tượng sử dụng không được vượt quá 100 ký tự!" },
+                    { whitespace: true, message: "Đối tượng sử dụng không được chỉ chứa khoảng trắng!" }
+                  ]}
                 >
                   <Input
-                    placeholder="Nhập đối tượng sử dụng"
+                    placeholder="Nhập đối tượng sử dụng (2-100 ký tự)"
                     style={customStyles.input}
+                    maxLength={100}
+                    showCount
                   />
                 </Form.Item>
 
@@ -448,24 +508,6 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
                     )}
                   </Upload>
                 </Form.Item>
-
-                {/* <Form.Item
-                  label={<span style={customStyles.label}>Trạng thái hiển thị</span>}
-                  name="status"
-                  valuePropName="checked"
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                    <Switch
-                      checked={switchValue}
-                      checkedChildren="Hiển thị"
-                      unCheckedChildren="Ẩn"
-                      onChange={handleSwitchChange}
-                    />
-                    <Text style={{ color: '#666', fontSize: '14px' }}>
-                      {switchValue ? 'Sản phẩm sẽ được hiển thị công khai' : 'Sản phẩm sẽ được ẩn'}
-                    </Text>
-                  </div>
-                </Form.Item> */}
 
                 <Divider style={customStyles.divider} />
 
@@ -537,25 +579,6 @@ const CreateProduct = ({ visible, onClose, onSuccess }) => {
         
         .ant-upload-select-picture-card:hover {
           border-color: #0D364C !important;
-        }
-        
-        /* Switch màu xanh khi bật (hiển thị) */
-        .ant-switch-checked {
-          background-color: #52c41a !important;
-        }
-        
-        /* Switch màu đỏ khi tắt (ẩn) */
-        .ant-switch:not(.ant-switch-checked) {
-          background-color: #ff4d4f !important;
-        }
-        
-        /* Hover effects cho switch */
-        .ant-switch-checked:hover:not(.ant-switch-disabled) {
-          background-color: #73d13d !important;
-        }
-        
-        .ant-switch:not(.ant-switch-checked):hover:not(.ant-switch-disabled) {
-          background-color: #ff7875 !important;
         }
         
         .ant-input:focus,

@@ -7,9 +7,7 @@ import {
   HomeOutlined,
   CalendarOutlined,
   DollarOutlined,
-  FileTextOutlined,
   CloseOutlined,
-  TagOutlined,
   MailOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
@@ -246,6 +244,13 @@ const ViewOrderDetail = ({ visible, orderData, onClose }) => {
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                         <CalendarOutlined style={{ color: '#13C2C2' }} />
                         <Text strong>{formatDate(orderData.createdAt)}</Text>
+                      </div>
+                    </div>
+                    <div>
+                      <Text type="secondary" style={{ fontSize: '12px' }}>Ngày cập nhật:</Text>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <CalendarOutlined style={{ color: '#13C2C2' }} />
+                        <Text strong>{formatDate(orderData.updatedAt)}</Text>
                       </div>
                     </div>
                     <div>

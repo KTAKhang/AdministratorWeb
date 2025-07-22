@@ -1,21 +1,24 @@
-import { useState } from "react";
-import { Card, Input, Button, message, Form, Typography, Space, Divider } from "antd";
+import { useState, useEffect } from "react";
+import { Card, Input, Button, message, Typography, Divider } from "antd";
 import { LockOutlined, KeyOutlined, SafetyOutlined, CheckCircleOutlined } from "@ant-design/icons";
+import { useDispatch, useSelector } from "react-redux";
+import { changePasswordRequest } from "../../redux/actions/profileActions";
+import PropTypes from 'prop-types';
 
 const { Title, Text } = Typography;
 
 // Motion component simulation (since framer-motion isn't available)
-const Motion = ({ children, className, delay = 0, ...props }) => {
+const Motion = ({ children, className = '', delay = 0, ...props }) => {
   const [isVisible, setIsVisible] = useState(false);
   
-  useState(() => {
+  useEffect(() => {
     const timer = setTimeout(() => setIsVisible(true), delay * 100);
     return () => clearTimeout(timer);
   }, [delay]);
 
   return (
     <div 
-      className={`${className || ''} transition-all duration-500 ${
+      className={`${className} transition-all duration-500 ${
         isVisible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-5'
       }`} 
       {...props}
@@ -25,14 +28,50 @@ const Motion = ({ children, className, delay = 0, ...props }) => {
   );
 };
 
+Motion.propTypes = {
+  children: PropTypes.node.isRequired,
+  className: PropTypes.string,
+  delay: PropTypes.number,
+};
+
 export default function UpdatePassword() {
+  const dispatch = useDispatch();
+  const { 
+    changePasswordLoading, 
+    changePasswordError, 
+    changePasswordSuccess 
+  } = useSelector(state => state.profile);
+
   const [formData, setFormData] = useState({
     oldPassword: '',
     newPassword: '',
     confirmPassword: ''
   });
-  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Handle success/error from Redux
+  useEffect(() => {
+    if (changePasswordSuccess) {
+      message.success({
+        // content: "Đổi mật khẩu thành công!",
+        icon: <CheckCircleOutlined style={{ color: '#13C2C2' }} />,
+      });
+      setFormData({
+        oldPassword: '',
+        newPassword: '',
+        confirmPassword: ''
+      });
+    }
+  }, [changePasswordSuccess]);
+
+  useEffect(() => {
+    if (changePasswordError) {
+      message.error({
+        content: changePasswordError,
+        duration: 4,
+      });
+    }
+  }, [changePasswordError]);
 
   const handleInputChange = (field, value) => {
     setFormData(prev => ({
@@ -75,20 +114,10 @@ export default function UpdatePassword() {
   const handleSubmit = async () => {
     if (!validateForm()) return;
     
-    setLoading(true);
-    // Simulate API call
-    setTimeout(() => {
-      setLoading(false);
-      message.success({
-        content: "Đổi mật khẩu thành công!",
-        icon: <CheckCircleOutlined style={{ color: '#13C2C2' }} />,
-      });
-      setFormData({
-        oldPassword: '',
-        newPassword: '',
-        confirmPassword: ''
-      });
-    }, 1200);
+    dispatch(changePasswordRequest({
+      old_password: formData.oldPassword,
+      new_password: formData.newPassword
+    }));
   };
 
   const customStyles = `
@@ -458,9 +487,9 @@ export default function UpdatePassword() {
                     className="modern-button mt-2"
                     type="primary"
                     htmlType="submit"
-                    loading={loading}
+                    loading={changePasswordLoading}
                     icon={<SafetyOutlined />}
-                    disabled={loading}
+                    disabled={changePasswordLoading}
                   >
                     Đổi mật khẩu
                   </Button>

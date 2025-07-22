@@ -24,8 +24,6 @@ const fetchOrders = async ({ page, limit, search }) => {
         url += `&search=${encodeURIComponent(search.trim())}`;
     }
 
-    console.log("🔍 Fetching orders with URL:", url);
-
     const response = await axios.get(url, {
         headers: {
             'accept': 'application/json',
@@ -47,8 +45,6 @@ const fetchOrdersByStatus = async ({ status, page, limit, search }) => {
         url += `&search=${encodeURIComponent(search.trim())}`;
     }
 
-    console.log("🔍 Fetching orders by status with URL:", url);
-
     const response = await axios.get(url, {
         headers: {
             'accept': '*/*',
@@ -62,7 +58,27 @@ const fetchOrdersByStatus = async ({ status, page, limit, search }) => {
 const updateOrder = async ({ id, orderData }) => {
     const token = localStorage.getItem('token') || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJfaWQiOiI2ODI3MjA5ODhhNjc5ZmM2YTkyYjAwNjgiLCJpc0FkbWluIjp0cnVlLCJyb2xlIjoiYWRtaW4iLCJpYXQiOjE3NDk5NzM1MTYsImV4cCI6MTc1MjU2NTUxNn0.Bra4_sSiYgGgz4KPvEAcrUlYoWKqZwxNtXRjokKP4ak';
 
-    console.log("🚀 Sending update request:", { id, orderData });
+    // Try different request body formats for testing
+    const requestBodyVariations = [
+        orderData, // Original format: { order_status_id: "id" }
+        { status: orderData.order_status_id }, // Alternative: { status: "id" }
+        { order_status: orderData.order_status_id }, // Alternative: { order_status: "id" }
+        { order_status_id: orderData.order_status_id }, // Explicit format
+    ];
+
+    // Debug: Log API request details
+    console.log('=== API Update Order Debug ===');
+    console.log('URL:', `${API_BASE_URL}/order/update/${id}`);
+    console.log('Original Request Body:', orderData);
+    console.log('Body Variations to try:', requestBodyVariations);
+    console.log('Headers:', {
+        'accept': 'application/json',
+        'Authorization': `Bearer ${token}`,
+        'Content-Type': 'application/json',
+    });
+    console.log('=== End API Debug ===');
+
+    // Use original format first - we can test variations later if needed
     const response = await axios.put(
         `${API_BASE_URL}/order/update/${id}`,
         orderData,
@@ -75,7 +91,11 @@ const updateOrder = async ({ id, orderData }) => {
         }
     );
 
-    console.log("📥 Update API Response:", response.data);
+    console.log('=== API Response Debug ===');
+    console.log('Response Status:', response.status);
+    console.log('Response Data:', response.data);
+    console.log('=== End Response Debug ===');
+
     return response.data;
 };
 
@@ -85,7 +105,6 @@ function* handleFetchOrders(action) {
         const data = yield call(fetchOrders, { page, limit, search });
         yield put(fetchOrderSuccess(data));
     } catch (error) {
-        console.error("❌ Fetch orders error:", error);
         const errorMessage = error.response?.data?.message || error.message;
         yield put(fetchOrderFailure(errorMessage));
     }
@@ -97,7 +116,6 @@ function* handleFetchOrdersByStatus(action) {
         const data = yield call(fetchOrdersByStatus, { status, page, limit, search });
         yield put(fetchOrderByStatusSuccess(data));
     } catch (error) {
-        console.error("❌ Fetch orders by status error:", error);
         const errorMessage = error.response?.data?.message || error.message;
         yield put(fetchOrderByStatusFailure(errorMessage));
     }
@@ -106,15 +124,17 @@ function* handleFetchOrdersByStatus(action) {
 function* handleUpdateOrder(action) {
     try {
         const { id, orderData } = action.payload;
-        console.log("🔄 Handling update order:", { id, orderData });
+
+        // Debug: Log request data
+        console.log('=== Saga Update Order Debug ===');
+        console.log('Order ID:', id);
+        console.log('Order Data:', orderData);
+        console.log('=== End Saga Debug ===');
 
         const data = yield call(updateOrder, { id, orderData });
 
-        console.log("✅ Update successful, response data:", data);
-
         // Check if the response has the expected structure
         if (!data) {
-            console.warn("⚠️ Empty response from update API");
             yield put(updateOrderFailure("Empty response from server"));
             return;
         }
@@ -142,20 +162,26 @@ function* handleUpdateOrder(action) {
             };
         }
 
-        console.log("📦 Processed data for reducer:", processedData);
         yield put(updateOrderSuccess(processedData));
 
         // Thông báo cho các tab khác về việc cập nhật order
         try {
             localStorage.setItem('orderUpdated', Date.now().toString());
-            console.log("📢 Order update notification sent to other tabs");
         } catch (error) {
             console.warn("⚠️ Could not notify other tabs:", error);
         }
 
     } catch (error) {
-        console.error("❌ Update order error:", error);
-        const errorMessage = error.response?.data?.message || error.message;
+        // Enhanced error logging
+        console.error('=== Update Order Error ===');
+        console.error('Status:', error.response?.status);
+        console.error('Status Text:', error.response?.statusText);
+        console.error('Response Data:', error.response?.data);
+        console.error('Request Config:', error.config);
+        console.error('Full Error:', error);
+        console.error('=== End Error Debug ===');
+
+        const errorMessage = error.response?.data?.message || error.response?.statusText || error.message;
         yield put(updateOrderFailure(errorMessage));
     }
 }

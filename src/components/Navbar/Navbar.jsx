@@ -1,5 +1,5 @@
-import { useState, useMemo, useRef, useEffect } from "react";
-import { Menu, Search, Bell, Settings, User, LogOut, ChevronDown } from "lucide-react";
+import { useState, useMemo, useRef } from "react";
+import { Menu, Settings, User, LogOut, ChevronDown } from "lucide-react";
 import { useSidebar } from '../../contexts/SidebarContext';
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from "react-redux";
@@ -8,28 +8,11 @@ import { logout } from "../../redux/actions/authActions";
 const Navbar = () => {
   const { toggleSidebar } = useSidebar();
   const [isDropdownOpen, setIsDropdownOpen] = useState(false);
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
-  const [searchValue, setSearchValue] = useState("");
-  const [notifications] = useState(3); // Mock notification count
-  const [userData, setUserData] = useState(null);
   const avatarBtnRef = useRef();
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  // // Load user data from localStorage
-  // useEffect(() => {
 
-  //   console.log("storedUser", storedUser);
-  //   setUserData(storedUser);
-  //   // if (storedUser) {
-  //   //   try {
-  //   //     const parsedUser = JSON.parse(storedUser);
-  //   //     setUserData(parsedUser);
-  //   //   } catch (error) {
-  //   //     console.error('Error parsing user data:', error);
-  //   //   }
-  //   // }
-  // }, []);
 
   const debouncedToggleSidebar = useMemo(() => {
     return () => {
@@ -45,11 +28,6 @@ const Navbar = () => {
     navigate("/");
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    console.log("Search for:", searchValue);
-  };
-
   const handleLogout = () => {
     const confirmed = window.confirm("Bạn có chắc chắn muốn đăng xuất?");
     if (confirmed) {
@@ -62,12 +40,10 @@ const Navbar = () => {
   };
 
   const storedUser = JSON.parse(localStorage.getItem("user"));
-  console.log("userData", storedUser.avatar);
   const displayName = storedUser?.user_name || "Người dùng";
   const displayEmail = storedUser?.email || "user@email.com";
   const displayAvatar = storedUser?.avatar || "https://images.unsplash.com/photo-1574158622682-e40e69881006?w=100&h=100&fit=crop&crop=face";
   const roleName = storedUser?.role_name || "user";
-  console.log("displayName", displayName);
   return (
     <div className="w-full relative overflow-visible sticky top-0 z-50" style={{ background: 'linear-gradient(135deg, #0D364C 0%, #13C2C2 100%)' }}>
       {/* Animated background elements */}
@@ -205,7 +181,7 @@ const Navbar = () => {
         <div className="h-1 w-full" style={{ background: 'linear-gradient(90deg, #13C2C2, transparent, #13C2C2)' }}></div>
       </div>
 
-      <style jsx>{`
+      <style>{`
         @keyframes float {
           0%, 100% { transform: translateY(0px); }
           50% { transform: translateY(-10px); }

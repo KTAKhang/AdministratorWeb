@@ -8,6 +8,9 @@ import {
     UPDATE_USER_REQUEST,
     updateUserSuccess,
     updateUserFailure,
+    CHANGE_PASSWORD_REQUEST,
+    changePasswordSuccess,
+    changePasswordFailure,
 } from "../actions/profileActions";
 
 const API_BASE_URL = "https://youtube-fullstack-nodejs-forbeginer.onrender.com/api";
@@ -24,7 +27,6 @@ const fetchUser = async ({ userId }) => {
             },
         }
     );
-    console.log("Fetched user data saga:", response.data);
     return response.data;
 };
 
@@ -55,10 +57,29 @@ const updateUser = async ({ userId, user_name, avatar }) => {
     return response.data;
 };
 
+// API function for changing password
+const changePassword = async ({ old_password, new_password }) => {
+    const token = localStorage.getItem('token');
+    const response = await axios.put(
+        `${API_BASE_URL}/user/change-password`,
+        {
+            old_password,
+            new_password
+        },
+        {
+            headers: {
+                'accept': 'application/json',
+                'Authorization': `Bearer ${token}`,
+                'Content-Type': 'application/json',
+            },
+        }
+    );
+    return response.data;
+};
+
 function* handleFetchUser(action) {
     try {
         const { userId } = action.payload;
-        console.log("Fetching user with ID:", userId);
         const data = yield call(fetchUser, { userId });
         yield put(fetchUserSuccess(data));
     } catch (error) {
@@ -82,7 +103,22 @@ function* handleUpdateUser(action) {
     }
 }
 
+function* handleChangePassword(action) {
+    try {
+        const { old_password, new_password } = action.payload;
+        const data = yield call(changePassword, {
+            old_password,
+            new_password
+        });
+        yield put(changePasswordSuccess(data));
+    } catch (error) {
+        const errorMessage = error.response?.data?.message || error.message;
+        yield put(changePasswordFailure(errorMessage));
+    }
+}
+
 export default function* userSaga() {
     yield takeLatest(FETCH_USER_REQUEST, handleFetchUser);
     yield takeLatest(UPDATE_USER_REQUEST, handleUpdateUser);
+    yield takeLatest(CHANGE_PASSWORD_REQUEST, handleChangePassword);
 }

@@ -42,8 +42,6 @@ const apiGetAllReviews = async (page = 1, limit = 5, search = '') => {
             url += `&search=${encodeURIComponent(search.trim())}`;
         }
 
-        console.log('🔍 API URL:', url);
-
         const response = await axios.get(url, {
             headers: getAuthHeaders()
         });
@@ -127,8 +125,6 @@ function* getAllReviewsSaga(action) {
     try {
         const { page = 1, limit = 5, search = '', status = '' } = action.payload || {};
 
-        console.log('🔍 getAllReviewsSaga params:', { page, limit, search, status });
-
         // Lấy cả review và product song song để có đầy đủ thông tin sản phẩm
         const [reviewData, productData] = yield all([
             call(apiGetAllReviews, page, limit, search),
@@ -142,18 +138,9 @@ function* getAllReviewsSaga(action) {
                 productMap[product._id] = product;
             });
 
-            console.log('🔍 Product map created:', Object.keys(productMap).length, 'products');
-            console.log('🔍 Sample product:', productData.data.products?.[0]);
-
             // Format reviews data từ API response mới
             let formattedReviews = reviewData.data.reviews.map(review => {
                 const productDetail = productMap[review.product._id];
-
-                console.log('🔍 Review product ID:', review.product._id);
-                console.log('🔍 Found product detail:', productDetail ? 'YES' : 'NO');
-                if (productDetail) {
-                    console.log('🔍 Product image:', productDetail.image);
-                }
 
                 return {
                     ...review,
@@ -188,7 +175,6 @@ function* getAllReviewsSaga(action) {
                 const statusBoolean = status === 'true' || status === true;
                 formattedReviews = formattedReviews.filter(review => review.status === statusBoolean);
                 filteredTotal = formattedReviews.length; // Update total to match filtered results
-                console.log('🔍 Status filter applied:', status, 'Results:', formattedReviews.length);
             }
 
             yield put(getAllReviewsSuccess({

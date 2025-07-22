@@ -48,8 +48,6 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
       });
 
       setStatusValue(currentStatus);
-      console.log('🔍 CategoryData status:', categoryData.status);
-      console.log('🔍 Current status value:', currentStatus);
 
       // Set initial image if exists
       if (categoryData.image) {
@@ -100,9 +98,6 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
     if (fileList.length > 0 && fileList[0].originFileObj) {
       updateData.image = fileList[0].originFileObj;
     }
-
-    console.log('Update data being sent:', updateData);
-    console.log('Status value:', values.status, 'Type:', typeof values.status);
 
     // Dispatch update action
     dispatch(updateCategoryRequest(updateData));
@@ -316,7 +311,6 @@ const UpdateCategory = ({ visible, categoryData, onClose, onSuccess }) => {
                     unCheckedChildren="Ẩn"
                     disabled={updateLoading}
                     onChange={(checked) => {
-                      console.log('Switch changed:', checked, 'Type:', typeof checked);
                       setStatusValue(checked);
                       form.setFieldValue('status', checked);
                     }}

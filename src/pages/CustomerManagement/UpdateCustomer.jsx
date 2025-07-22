@@ -63,19 +63,14 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
   // Set form values khi có userDetail
   useEffect(() => {
     if (visible && userDetail) {
-      console.log('🔍 userDetail received:', userDetail); // Debug log
 
-      // Set form values với đầy đủ thông tin từ userDetail
       const currentStatus = userDetail.status !== undefined ? userDetail.status : true;
 
       const formValues = {
         user_name: userDetail.user_name || '',
-        email: userDetail.email || '', // Bây giờ sẽ có email từ API detail
+        email: userDetail.email || '',
         status: currentStatus,
       };
-
-      console.log('🔍 Setting form values:', formValues); // Debug log
-      console.log('🔍 Original status from API:', userDetail.status, 'Type:', typeof userDetail.status); // Debug log
 
       form.setFieldsValue(formValues);
       setStatusValue(currentStatus);
@@ -106,18 +101,12 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
   }, [visible, userDetail, form]);
 
   const handleFinish = (values) => {
-    console.log('🔍 Form values submitted:', values); // Debug log
-
     const updateData = { ...values };
 
     // Xử lý status như UpdateCategory - đảm bảo boolean value
     updateData.status = Boolean(values.status);
-    console.log(`🔍 Status processing: ${values.status} -> ${updateData.status} (type: ${typeof updateData.status})`); // Debug log
-
     // Không xử lý avatar file (không gửi avatar mới lên)
     delete updateData.avatar;
-
-    console.log('🔍 Final updateData:', updateData); // Debug log
 
     // Set submitted flag
     setHasSubmitted(true);
@@ -329,11 +318,9 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
                 name="status"
                 valuePropName="checked"
                 getValueFromEvent={(checked) => {
-                  console.log('🔍 getValueFromEvent:', checked); // Debug log
                   return checked;
                 }}
                 normalize={(value) => {
-                  console.log('🔍 normalize:', value); // Debug log
                   return Boolean(value);
                 }}
               >
@@ -343,7 +330,6 @@ const UpdateCustomer = ({ visible, customerData, onClose, onSuccess }) => {
                     checkedChildren="Hoạt động"
                     unCheckedChildren="Khóa"
                     onChange={(checked) => {
-                      console.log('🔍 Switch onChange:', checked, 'Type:', typeof checked); // Debug log
                       setStatusValue(checked);
                       form.setFieldValue('status', checked);
                     }}

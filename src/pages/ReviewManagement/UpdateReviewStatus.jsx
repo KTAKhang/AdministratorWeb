@@ -28,7 +28,6 @@ const UpdateReviewStatus = ({ visible, reviewData, onClose, onSuccess }) => {
     }, [visible, reviewData, form]);
 
     const handleFinish = (values) => {
-        console.log('Updating review status:', values);
         onSuccess && onSuccess(reviewData?._id, values.status);
         onClose && onClose();
     };
